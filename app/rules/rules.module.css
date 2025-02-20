@@ -1,0 +1,66 @@
+.title {
+  color: #000000;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.list {
+  list-style-type: disc;
+  padding-left: 20px;
+  margin-bottom: 10px;
+}
+
+.listItem {
+  font-size: 16px;
+  color: #333333;
+}
+
+.subtitle {
+  color: #222222;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.subSubtitle {
+  color: #444444;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.text {
+  color: #555555;
+  font-size: 14px;
+  line-height: 1.6; 
+  margin-bottom: 10px;
+}
+
+.darkTitle{
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.darkListItem {
+  color: #dddddd;
+  font-size: 16px;
+}
+
+.darkSubtitle {
+  color: #eeeeee;
+  font-size: 18px;
+  font-weight: 600;
+
+}
+
+.darkSubSubtitle {
+  color: #cccccc;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.darkText {
+  color: #bbbbbb;
+  font-size: 14px;
+  line-height: 1.6; 
+  margin-bottom: 10px;
+}

@@ -10,11 +10,7 @@ export const siteConfig = {
     },
     {
       label: "New Game",
-      href: "/new-game",
-    },
-    {
-      label: "Join existing game",
-      href: "/join-game",
+      href: "/game/new",
     },
     {
       label: "Rules",
@@ -31,17 +27,13 @@ export const siteConfig = {
       href: "/new-game",
     },
     {
-      label: "Join existing game",
-      href: "/join-game",
-    },
-    {
       label: "Rules",
       href: "/rules",
     },
   ],
   links: {
-    github: "https://github.com/heroui-inc/heroui",
-    twitter: "https://twitter.com/hero_ui",
+    github: "https://github.com/freddysae0/coup",
+    linkedin: "https://www.linkedin.com/in/freddy-js/",
     docs: "https://heroui.com",
     discord: "https://discord.gg/9b6yyZKmH4",
     sponsor: "https://patreon.com/jrgarciadev",
