@@ -26,7 +26,11 @@ declare module "@react-types/shared" {
 type WebSocketContextType = {
   socket: WebSocket | null;
 };
-const ws = new WebSocket("ws://backend-coup.freddyjs.es:8000/");
+
+console.log(process.env.NEXT_PUBLIC_WS_URL);
+const ws = new WebSocket(
+  process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000"
+);
 const WebSocketContext = createContext<WebSocketContextType | undefined>({
   socket: ws,
 });

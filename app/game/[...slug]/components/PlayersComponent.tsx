@@ -1,12 +1,5 @@
 "use client";
-import {
-  Alert,
-  Dropdown,
-  DropdownItem,
-  DropdownMenu,
-  DropdownTrigger,
-} from "@heroui/react";
-import { button } from "@heroui/theme";
+import { Alert } from "@heroui/react";
 
 import { Player } from "@/types/game";
 
@@ -17,17 +10,6 @@ export default function PlayersComponent({
   players: Player[];
   playerId: string;
 }) {
-  const items = [
-    {
-      key: "edit",
-      label: "Edit player",
-    },
-    {
-      key: "delete",
-      label: "Delete player",
-    },
-  ];
-
   return (
     <div className="flex flex-col gap-3">
       {players.map((player, index) => (
@@ -35,26 +17,7 @@ export default function PlayersComponent({
           key={index}
           className="text-left"
           color={player.id == playerId ? "primary" : "default"}
-          endContent={
-            <Dropdown>
-              <DropdownTrigger>
-                <button className={button({ variant: "bordered" })}>
-                  Open Menu
-                </button>
-              </DropdownTrigger>
-              <DropdownMenu aria-label="Dynamic Actions" items={items}>
-                {(item) => (
-                  <DropdownItem
-                    key={item.key}
-                    className={item.key === "delete" ? "text-danger" : ""}
-                    color={item.key === "delete" ? "danger" : "default"}
-                  >
-                    {item.label}
-                  </DropdownItem>
-                )}
-              </DropdownMenu>
-            </Dropdown>
-          }
+          endContent={<></>}
           icon={<UserIcon />}
           title={player.name}
           variant="flat"

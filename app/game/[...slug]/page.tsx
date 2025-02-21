@@ -38,7 +38,7 @@ export default function Game() {
     setPlayer(player);
     localStorage.setItem("player", JSON.stringify(player));
     socket?.send(
-      JSON.stringify({ type: "updatePlayerName", player: player, room: room }),
+      JSON.stringify({ type: "updatePlayerName", player: player, room: room })
     );
   };
   const gameStarts = () => {
@@ -100,7 +100,7 @@ export default function Game() {
             <div className="flex flex-col gap-3">
               <h1 className={title()}>Coup room</h1>
               <p className={subtitle()}>
-                Invite your friends to play together.
+                Invite your friends to this URL link and play together.
               </p>
 
               {players.length > 1 && player?.isHost && (
@@ -112,15 +112,12 @@ export default function Game() {
                   Start Game
                 </Button>
               )}
-
+              {/* 
               <h2 className={"text-left"}>Room Link:</h2>
-              <Snippet
-                codeString={baseUrl + "/game/" + room}
-                color="secondary"
-                symbol=""
-              >
-                {baseUrl + "/game/...." + room.split("-")[4]}
-              </Snippet>
+
+              <Snippet color="secondary" symbol="">
+                {"..." + room.split("-")[4]}
+              </Snippet> */}
 
               <h2 className={"text-left"}>Insert your nickname:</h2>
               <form
