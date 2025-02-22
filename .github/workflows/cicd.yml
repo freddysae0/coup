@@ -56,7 +56,7 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             docker pull ghcr.io/freddysae0/coup:deployment
-            docker stop ${{ secrets.SERVER_CONTAINER }}
-            docker rm ${{ secrets.SERVER_CONTAINER }}
+            docker stop ${{ vars.SERVER_CONTAINER }}
+            docker rm ${{ vars.SERVER_CONTAINER }}
             docker rmi $(docker images -q | tail -n +5)
-            docker run -p 3001:3000 -d --name ${{ secrets.SERVER_CONTAINER }} ghcr.io/freddysae0/coup:deployment 
+            docker run -p 3001:3000 -d --name ${{ vars.SERVER_CONTAINER }} ghcr.io/freddysae0/coup:deployment 
