@@ -2,7 +2,7 @@ name: Create and publish a Docker image
 
 on:
   push:
-    branches: ["main"]
+    branches: ["master"]
 
 env:
   REGISTRY: ghcr.io
@@ -46,3 +46,5 @@ jobs:
 
       - name: Debug tags
         run: echo ${{ steps.meta.outputs.tags }}
+
+
