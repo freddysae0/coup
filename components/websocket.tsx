@@ -44,6 +44,7 @@ const WebSocketComponent = ({
 
   useEffect(() => {
     const isFirefox = navigator.userAgent.toLowerCase().includes("firefox");
+
     if (!socket) return;
 
     //Run in firefox
@@ -54,7 +55,7 @@ const WebSocketComponent = ({
             type: "createRoom",
             room: room,
             game: { deck, throws, players },
-          })
+          }),
         );
       };
     } else {
@@ -63,7 +64,7 @@ const WebSocketComponent = ({
           type: "createRoom",
           room: room,
           game: { deck, throws, players },
-        })
+        }),
       );
     }
 
@@ -76,7 +77,7 @@ const WebSocketComponent = ({
           setThrows(msg.data.throws);
           setPlayers(msg.data.players);
           setPlayer(
-            msg.data.players.find((p: Player) => p.id === player.id) as Player
+            msg.data.players.find((p: Player) => p.id === player.id) as Player,
           );
           setTurn(msg.data.turn as Player);
           setDiscussions(msg.data.openDiscussions as Discussion[]);

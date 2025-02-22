@@ -116,7 +116,7 @@ export const StyledRadioButton = (props: any) => {
       classNames={{
         base: cn(
           "inline-flex m-0  items-center justify-between",
-          "flex-row-reverse max-w-[500px] cursor-pointer rounded-lg gap-4 p-2 border-2 border-transparent"
+          "flex-row-reverse max-w-[500px] cursor-pointer rounded-lg gap-4 p-2 border-2 border-transparent",
         ),
       }}
       color="danger"
@@ -147,7 +147,7 @@ const RunningGame: React.FC<RunningGameProps> = ({
   const [selectedTargetId, setSelectedTargetId] = useState<string>("");
   const [selectedAction, setSelectedAction] = useState<string>("");
   const [activeDiscussion, setActiveDiscussion] = useState<Discussion | null>(
-    null
+    null,
   );
   const [globalActiveDiscussion, setGlobalActiveDiscussion] =
     useState<Discussion | null>(null);
@@ -215,7 +215,7 @@ const RunningGame: React.FC<RunningGameProps> = ({
         activeDiscussion?.action === "Wins challenge"
           ? "Lose a card"
           : "ResolveCoup",
-        { target: cardName, discussionId: activeDiscussion?.id }
+        { target: cardName, discussionId: activeDiscussion?.id },
       );
     } else {
       const { action, extra } = actionMap[selectedAction] || {
@@ -232,7 +232,9 @@ const RunningGame: React.FC<RunningGameProps> = ({
   useEffect(() => {
     if (!discussions || discussions.length == 0) {
       setGlobalActiveDiscussion(null);
-      return onCloseCounterActionMenu();
+      onCloseCounterActionMenu();
+
+      return;
     }
     const discussion = discussions[discussions.length - 1];
     let foundDiscussion = false;

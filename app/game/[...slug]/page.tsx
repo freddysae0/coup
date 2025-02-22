@@ -1,6 +1,5 @@
 "use client";
 import { v4 } from "uuid";
-import { Snippet } from "@heroui/snippet";
 import { useEffect, useState } from "react";
 import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
@@ -20,7 +19,7 @@ export default function Game() {
   const [, setPathUrl] = useState("");
   const [, setRouteUuid] = useState("");
   const [name, setName] = useState("");
-  const [baseUrl, setBaseUrl] = useState("");
+  const [, setBaseUrl] = useState("");
 
   let newPlayer = {} as Player;
   const [discussions, setDiscussions] = useState<Discussion[]>([]);
@@ -38,7 +37,7 @@ export default function Game() {
     setPlayer(player);
     localStorage.setItem("player", JSON.stringify(player));
     socket?.send(
-      JSON.stringify({ type: "updatePlayerName", player: player, room: room })
+      JSON.stringify({ type: "updatePlayerName", player: player, room: room }),
     );
   };
   const gameStarts = () => {
