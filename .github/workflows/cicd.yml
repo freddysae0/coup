@@ -40,8 +40,10 @@ jobs:
         with:
           context: .
           push: true
-          no-cache: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:deployment
+          no-cache: true   
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.run_number }}
           labels: ${{ steps.meta.outputs.labels }}
 
       - name: Debug tags
@@ -55,8 +57,8 @@ jobs:
           username: ${{ vars.SERVER_USER }}
           key: ${{ secrets.SSH_KEY }}
           script: |
-            docker pull ghcr.io/freddysae0/coup:deployment
+            docker pull ghcr.io/freddysae0/coup:latest
             docker stop ${{ vars.SERVER_CONTAINER }}
             docker rm ${{ vars.SERVER_CONTAINER }}
             docker rmi $(docker images -q | tail -n +5)
-            docker run -p 3001:3000 -d --name ${{ vars.SERVER_CONTAINER }} ghcr.io/freddysae0/coup:deployment 
+            docker run -p 3001:3000 -d --name ${{ vars.SERVER_CONTAINER }} ghcr.io/freddysae0/coup:latest 
