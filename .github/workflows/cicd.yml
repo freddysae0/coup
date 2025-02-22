@@ -48,3 +48,15 @@ jobs:
         run: echo ${{ steps.meta.outputs.tags }}
 
 
+      - name: Run in server
+        uses: appleboy/ssh-action@v0.1.5
+        with:
+          host: ${{ vars.SERVER_IP }}
+          username: ${{ vars.SERVER_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            docker pull ghcr.io/freddysae0/coup:deployment
+            docker stop ${{ secrets.SERVER_CONTAINER }}
+            docker rm ${{ secrets.SERVER_CONTAINER }}
+            docker rmi $(docker images -q | tail -n +5)
+            docker run -p 3001:3000 -d --name ${{ secrets.SERVER_CONTAINER }} ghcr.io/freddysae0/coup:deployment 
