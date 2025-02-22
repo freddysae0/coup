@@ -47,8 +47,6 @@ const WebSocketComponent = ({
 
     if (!socket) return;
 
-    //Run in firefox
-    /* if (isFirefox) { */
     socket.onopen = () => {
       socket.send(
         JSON.stringify({
@@ -57,16 +55,7 @@ const WebSocketComponent = ({
           game: { deck, throws, players },
         })
       );
-    }; /* 
-    } else {
-      socket.send(
-        JSON.stringify({
-          type: "createRoom",
-          room: room,
-          game: { deck, throws, players },
-        }),
-      );
-    } */
+    };
 
     socket.onmessage = (event) => {
       const msg = JSON.parse(event.data);

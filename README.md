@@ -1,53 +1,46 @@
-# Next.js & HeroUI Template
+# Coup Game Frontend  
 
-This is a template for creating applications using Next.js 14 (app directory) and HeroUI (v2).
+This repository contains the frontend for the **Coup Game**, a multiplayer game where players enter a room and play together in real time.  
 
-[Try it on CodeSandbox](https://githubbox.com/heroui-inc/heroui/next-app-template)
+## 📌 Game Flow  
 
-## Technologies Used
+1. **Room Creation**  
+   - Players join a game room via a dynamic URL: `/game/{uuid}`.  
+   - Everyone in the same room will play together.  
 
-- [Next.js 14](https://nextjs.org/docs/getting-started)
-- [HeroUI v2](https://heroui.com/)
-- [Tailwind CSS](https://tailwindcss.com/)
-- [Tailwind Variants](https://tailwind-variants.org)
-- [TypeScript](https://www.typescriptlang.org/)
-- [Framer Motion](https://www.framer.com/motion/)
-- [next-themes](https://github.com/pacocoursey/next-themes)
+2. **Game Start**  
+   - Once all players are in the room, the frontend sends a signal to the backend to start the game.  
 
-## How to Use
+3. **Player Actions**  
+   - Players perform actions in the frontend.  
+   - These actions are sent to the backend for processing.  
 
-### Use the template with create-next-app
+4. **Game State Update**  
+   - The backend processes the actions and updates the game state.  
+   - The updated game state is then sent back to the frontend so all players can see the changes in real time.  
 
-To create a new project based on this template using `create-next-app`, run the following command:
+## 🛠️ Technologies Used  
+
+- **Frontend**: Next.js 
+- **Real-Time Communication**: WebSockets  
+
+## 🚀 Installation and Setup  
+
+### Clone the repository  
 
 ```bash
-npx create-next-app -e https://github.com/heroui-inc/next-app-template
+git clone https://github.com/freddysae0/coup.git
+cd coup
 ```
 
-### Install dependencies
-
-You can use one of them `npm`, `yarn`, `pnpm`, `bun`, Example using `npm`:
+### Install dependencies  
 
 ```bash
 npm install
 ```
 
-### Run the development server
+### Start the development server  
 
 ```bash
 npm run dev
 ```
-
-### Setup pnpm (optional)
-
-If you are using `pnpm`, you need to add the following code to your `.npmrc` file:
-
-```bash
-public-hoist-pattern[]=*@heroui/*
-```
-
-After modifying the `.npmrc` file, you need to run `pnpm install` again to ensure that the dependencies are installed correctly.
-
-## License
-
-Licensed under the [MIT license](https://github.com/heroui-inc/next-app-template/blob/main/LICENSE).
