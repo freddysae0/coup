@@ -28,7 +28,7 @@ type WebSocketContextType = {
 };
 
 const ws = new WebSocket(
-  process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000",
+  process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000"
 );
 const WebSocketContext = createContext<WebSocketContextType | undefined>({
   socket: ws,
