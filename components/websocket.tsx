@@ -48,16 +48,16 @@ const WebSocketComponent = ({
     if (!socket) return;
 
     //Run in firefox
-    if (isFirefox) {
-      socket.onopen = () => {
-        socket.send(
-          JSON.stringify({
-            type: "createRoom",
-            room: room,
-            game: { deck, throws, players },
-          }),
-        );
-      };
+    /* if (isFirefox) { */
+    socket.onopen = () => {
+      socket.send(
+        JSON.stringify({
+          type: "createRoom",
+          room: room,
+          game: { deck, throws, players },
+        })
+      );
+    }; /* 
     } else {
       socket.send(
         JSON.stringify({
@@ -66,7 +66,7 @@ const WebSocketComponent = ({
           game: { deck, throws, players },
         }),
       );
-    }
+    } */
 
     socket.onmessage = (event) => {
       const msg = JSON.parse(event.data);
@@ -77,7 +77,7 @@ const WebSocketComponent = ({
           setThrows(msg.data.throws);
           setPlayers(msg.data.players);
           setPlayer(
-            msg.data.players.find((p: Player) => p.id === player.id) as Player,
+            msg.data.players.find((p: Player) => p.id === player.id) as Player
           );
           setTurn(msg.data.turn as Player);
           setDiscussions(msg.data.openDiscussions as Discussion[]);
