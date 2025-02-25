@@ -18,12 +18,12 @@ import React, { useEffect, useState } from "react";
 import { Button } from "@heroui/button";
 
 import GameOver from "./components/GameOver";
+import { cardsImg, discussionMeta, icons } from "./RunningGame.utils";
+import CounterActionModal from "./components/CounteractionModal/CounterActionModal";
 
 import { useWebSocket } from "@/app/providers";
 import { Action, Card, Discussion, Player } from "@/types/game";
 import { subtitle } from "@/shared/primitives";
-import { cardsImg, discussionMeta, icons } from "./RunningGame.utils";
-import CounterActionModal from "./components/CounteractionModal/CounterActionModal";
 
 interface RunningGameProps {
   room: string;
@@ -437,11 +437,12 @@ const RunningGame: React.FC<RunningGameProps> = ({
           {/* Cunteractions --------------------> */}
           <CounterActionModal
             activeDiscussion={activeDiscussion}
-            onCloseCounterActionMenu={onCloseCounterActionMenu}
             player={player}
             selectedCardNumber={selectedCardNumber}
-            setSelectedCardNumber={setSelectedCardNumber}
             sendSelectedAction={sendSelectedAction}
+            setSelectedCardNumber={setSelectedCardNumber}
+            onCloseCounterActionMenu={onCloseCounterActionMenu}
+            isOpen={isOpenCounterActionMenu}
           />
         </div>
       )}

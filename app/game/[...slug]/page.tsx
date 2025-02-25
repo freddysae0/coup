@@ -5,7 +5,6 @@ import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
 
 import { createDeck, createThrows } from "./page.utils";
-
 import PlayersComponent from "./components/AllPlayers";
 import RunningGame from "./components/RunningGame";
 
@@ -37,7 +36,7 @@ export default function Game() {
     setPlayer(player);
     localStorage.setItem("player", JSON.stringify(player));
     socket?.send(
-      JSON.stringify({ type: "updatePlayerName", player: player, room: room })
+      JSON.stringify({ type: "updatePlayerName", player: player, room: room }),
     );
   };
   const gameStarts = () => {

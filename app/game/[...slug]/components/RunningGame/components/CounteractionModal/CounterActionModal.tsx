@@ -9,9 +9,11 @@ import {
   RadioGroup,
 } from "@heroui/react";
 import React from "react";
+
 import { discussionMeta } from "../../RunningGame.utils";
-import { Action, Card, Discussion, Player } from "@/types/game";
 import { StyledRadioButton } from "../../RunningGame";
+
+import { Action, Discussion, Player } from "@/types/game";
 
 interface CounterActionModalProps extends Omit<ModalProps, "children"> {
   activeDiscussion: Discussion | null;
@@ -51,7 +53,7 @@ const CounterActionModal: React.FC<CounterActionModalProps> = ({
                 {discussionMeta[
                   activeDiscussion.action ? activeDiscussion.action : "Default"
                 ][activeDiscussion.step ? activeDiscussion.step - 1 : 0].title(
-                  activeDiscussion.player.name
+                  activeDiscussion.player.name,
                 )}{" "}
               </ModalHeader>
               <ModalBody className="max-h-[80vh] overflow-auto ">

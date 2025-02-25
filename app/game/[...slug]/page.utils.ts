@@ -1,5 +1,4 @@
-import { Game } from "@/types";
-import { Card, Discussion } from "@/types/game";
+import { Card } from "@/types/game";
 export const dukeCard: Card = {
   name: "Duke",
   action: "Tax",
