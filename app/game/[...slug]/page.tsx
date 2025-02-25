@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
 
-import { createDeck, createThrows } from "../utils";
+import { createDeck, createThrows } from "./page.utils";
 
 import PlayersComponent from "./components/AllPlayers";
 import RunningGame from "./components/RunningGame";

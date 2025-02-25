@@ -57,32 +57,13 @@ export type Discussion = {
   playerWhomBeCoursed: Player;
 };
 
-export const dukeCard: Card = {
-  name: "Duke",
-  action: "Tax",
-  counteraction: "Foreign Aid",
-};
+export type DiscussionMeta = {
+  [key: string]: Array<{
+    title: (playerName: string) => string;
+    notification?: (discussion: Discussion | null) => string;
 
-export const assassinCard: Card = {
-  name: "Assassin",
-  action: "Assassinate",
-  counteraction: "Assassinate",
-};
-
-export const captainCard: Card = {
-  name: "Captain",
-  action: "Steal",
-  counteraction: "Steal",
-};
-
-export const ambassadorCard: Card = {
-  name: "Ambassador",
-  action: "Exchange",
-  counteraction: "Steal",
-};
-
-export const contessaCard: Card = {
-  name: "Contessa",
-  action: "None", // Assuming this card is just for a basic action
-  counteraction: "Assassinate",
+    description: string;
+    okButton: string;
+    cancelButton?: string;
+  }>;
 };

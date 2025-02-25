@@ -22,6 +22,8 @@ import GameOver from "./components/GameOver";
 import { useWebSocket } from "@/app/providers";
 import { Action, Card, Discussion, Player } from "@/types/game";
 import { subtitle } from "@/shared/primitives";
+import { cardsImg, discussionMeta, icons } from "./RunningGame.utils";
+import CounterActionModal from "./components/CounteractionModal/CounterActionModal";
 
 interface RunningGameProps {
   room: string;
@@ -31,91 +33,6 @@ interface RunningGameProps {
   turn: Player;
   discussions: Discussion[];
 }
-
-type DiscussionMeta = {
-  [key: string]: Array<{
-    title: (playerName: string) => string;
-    notification?: (discussion: Discussion | null) => string;
-
-    description: string;
-    okButton: string;
-    cancelButton?: string;
-  }>;
-};
-const discussionMeta: DiscussionMeta = {
-  Default: [
-    {
-      title: (playerName: string) => `${playerName} is taking an action`,
-      description: `Will you challenge?`,
-      notification: (currentDiscussion: Discussion | null) =>
-        `${currentDiscussion?.player.name} is taking an action to ${currentDiscussion?.target?.name}`,
-      okButton: "Challenge",
-      cancelButton: "Skip",
-    },
-  ],
-  //'Income': {},
-  "Foreign aid": [
-    {
-      title: (playerName: string) => `${playerName} is taking foreign aid`,
-      description: `Will try to stop that?`,
-      okButton: "Deny foreign aid",
-      cancelButton: "Skip",
-    },
-    {
-      title: (playerName: string) => `${playerName} denied your foreign aid`,
-      description: `Do you think they might be a duke?`,
-      okButton: "Challenge",
-      cancelButton: "Skip",
-    },
-  ],
-  Coup: [
-    {
-      title: (playerName: string) => `${playerName} is couping you`,
-      notification: (currentDiscussion: Discussion | null) =>
-        `${currentDiscussion?.player.name} is couping ${currentDiscussion?.target?.name}!!!`,
-
-      description: `You have to throw one card`,
-      okButton: "Throw card",
-    },
-    {
-      title: (playerName: string) => `You have lose one challenge.`,
-      description: `You have to throw one card`,
-      okButton: "Throw card",
-    },
-  ],
-
-  "Lose card": [
-    {
-      title: (playerName: string) => `You have lose`,
-      description: `You have to throw one card`,
-      okButton: "Throw card",
-    },
-  ],
-  "DenyForeign aid": [
-    {
-      title: (playerName: string) => `${playerName} is trying to deny yoy.`,
-      description: `Do you want to challenge?`,
-      okButton: "Challenge",
-      cancelButton: "Skip",
-    },
-  ],
-  /* 'Tax': {},
-    'Assassinate': {},
-    'Exchange': {},
-    'Steal': {} */
-};
-
-const cardsImg = {
-  Duke: "/cards/Duque.png",
-  Captain: "/cards/Capitan.png",
-  Assassin: "/cards/Assasin.png",
-  Contessa: "/cards/Condesa.png",
-  Ambassador: "/cards/Embajador.png",
-  Backcard: "/cards/Backcard.png",
-};
-const icons = {
-  coins: "/icons/coin.svg",
-};
 
 export const StyledRadioButton = (props: any) => {
   const { children, ...otherProps } = props;
@@ -156,7 +73,7 @@ const RunningGame: React.FC<RunningGameProps> = ({
   } = useDisclosure();
   const [selectedTargetId, setSelectedTargetId] = useState<string>("");
   const [selectedAction, setSelectedAction] = useState<string>("");
-  const [selectedCard, setSelectedCard] = useState<number>(0);
+  const [selectedCardNumber, setSelectedCardNumber] = useState<number>(0);
   const [activeDiscussion, setActiveDiscussion] = useState<Discussion | null>(
     null
   );
@@ -229,7 +146,7 @@ const RunningGame: React.FC<RunningGameProps> = ({
       "Lose card": {
         action: "Lose card",
         extra: {
-          cardToThrow: selectedCard,
+          cardToThrow: selectedCardNumber,
         },
       },
     };
@@ -245,8 +162,6 @@ const RunningGame: React.FC<RunningGameProps> = ({
       extra: {},
     };
 
-    console.log(action, extra);
-
     sendAction(action, extra);
 
     onCloseActionMenu();
@@ -256,10 +171,9 @@ const RunningGame: React.FC<RunningGameProps> = ({
     if (!discussions || discussions.length == 0) {
       setGlobalActiveDiscussion(null);
       onCloseCounterActionMenu();
+
       return;
     }
-
-    console.log(discussions);
 
     const discussion = discussions[discussions.length - 1];
     let foundDiscussion = false;
@@ -267,7 +181,6 @@ const RunningGame: React.FC<RunningGameProps> = ({
     // Coup, Assasin, Steal case
     setGlobalActiveDiscussion(discussion);
 
-    console.log(discussion, "discussions");
     if (
       discussion.target?.id == player.id ||
       (discussion.target?.name == "all" && discussion.player.id != player.id)
@@ -356,12 +269,12 @@ const RunningGame: React.FC<RunningGameProps> = ({
             Income 💵
           </Button>
           <Button
+            color="default"
             isDisabled={turn.id != player.id || player.coins >= 10}
+            variant="ghost"
             onPress={() => {
               sendSelectedAction("Foreign aid");
             }}
-            variant="ghost"
-            color="default"
           >
             Foreign Aid 🌍
           </Button>{" "}
@@ -522,110 +435,14 @@ const RunningGame: React.FC<RunningGameProps> = ({
             </ModalContent>
           </Modal>
           {/* Cunteractions --------------------> */}
-          <Modal
-            hideCloseButton={true}
-            isDismissable={false}
-            isKeyboardDismissDisabled={true}
-            isOpen={isOpenCounterActionMenu}
-            size={"md"}
-            onClose={onCloseCounterActionMenu}
-          >
-            {activeDiscussion && (
-              <ModalContent>
-                {(onClose) => (
-                  <>
-                    <ModalHeader className="flex flex-col gap-1">
-                      {discussionMeta[
-                        activeDiscussion.action
-                          ? activeDiscussion.action
-                          : "Default"
-                      ][
-                        activeDiscussion.step ? activeDiscussion.step - 1 : 0
-                      ].title(activeDiscussion.player.name)}{" "}
-                    </ModalHeader>
-                    <ModalBody className="max-h-[80vh] overflow-auto ">
-                      <RadioGroup
-                        label={
-                          discussionMeta[
-                            activeDiscussion.action
-                              ? activeDiscussion.action
-                              : "Default"
-                          ][
-                            activeDiscussion.step
-                              ? activeDiscussion.step - 1
-                              : 0
-                          ].description
-                        }
-                        value={selectedCard.toString()}
-                        onChange={(e) =>
-                          setSelectedCard(parseInt(e.target.value))
-                        }
-                      >
-                        {activeDiscussion.action == "Lose card" &&
-                          player.cards.map((card, index) => (
-                            <StyledRadioButton
-                              key={index}
-                              description={`Action: ${card.action}, Counteraction: ${card.counteraction}`}
-                              value={index.toString()}
-                            >
-                              {card.name}
-                            </StyledRadioButton>
-                          ))}
-                      </RadioGroup>
-                    </ModalBody>
-                    <ModalFooter>
-                      {discussionMeta[
-                        activeDiscussion.action
-                          ? activeDiscussion.action
-                          : "Default"
-                      ][activeDiscussion.step ? activeDiscussion.step - 1 : 0]
-                        .cancelButton && (
-                        <Button
-                          color="default"
-                          variant="light"
-                          onPress={() => {
-                            sendSelectedAction(activeDiscussion.action, true);
-                            onCloseCounterActionMenu();
-                          }}
-                        >
-                          {
-                            discussionMeta[
-                              activeDiscussion.action
-                                ? activeDiscussion.action
-                                : "Default"
-                            ][
-                              activeDiscussion.step
-                                ? activeDiscussion.step - 1
-                                : 1
-                            ].cancelButton
-                          }
-                        </Button>
-                      )}
-                      <Button
-                        color="primary"
-                        onPress={() => {
-                          sendSelectedAction(activeDiscussion.action);
-                          onCloseCounterActionMenu();
-                        }}
-                      >
-                        {
-                          discussionMeta[
-                            activeDiscussion.action
-                              ? activeDiscussion.action
-                              : "Default"
-                          ][
-                            activeDiscussion.step
-                              ? activeDiscussion.step - 1
-                              : 0
-                          ].okButton
-                        }
-                      </Button>
-                    </ModalFooter>
-                  </>
-                )}
-              </ModalContent>
-            )}
-          </Modal>
+          <CounterActionModal
+            activeDiscussion={activeDiscussion}
+            onCloseCounterActionMenu={onCloseCounterActionMenu}
+            player={player}
+            selectedCardNumber={selectedCardNumber}
+            setSelectedCardNumber={setSelectedCardNumber}
+            sendSelectedAction={sendSelectedAction}
+          />
         </div>
       )}
     </div>

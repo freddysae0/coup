@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --ext .ts,.tsx -c .eslintrc.json --fix",
+    "test": "vitest",
     "prepare": "next-ws patch"
   },
   "dependencies": {
@@ -42,6 +43,8 @@
   "devDependencies": {
     "@next/eslint-plugin-next": "15.0.4",
     "@react-types/shared": "3.25.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.2.0",
     "@types/node": "20.5.7",
     "@types/react": "18.3.3",
     "@types/react-dom": "18.3.0",
@@ -59,10 +62,12 @@
     "eslint-plugin-react": "^7.23.2",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-unused-imports": "4.1.4",
+    "jsdom": "^26.0.0",
     "postcss": "8.4.49",
     "prettier": "3.3.3",
     "tailwind-variants": "0.1.20",
     "tailwindcss": "3.4.16",
-    "typescript": "5.6.3"
+    "typescript": "5.6.3",
+    "vitest": "^3.0.7"
   }
 }

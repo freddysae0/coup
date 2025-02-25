@@ -21,4 +21,5 @@ const MoonFilledIcon: React.FC<IconSvgProps> = ({
     />
   </svg>
 );
+
 export default MoonFilledIcon;
