@@ -7,7 +7,9 @@ import { Providers } from "./providers";
 
 import { siteConfig } from "@/config/site";
 import { fontSans } from "@/config/fonts";
-import { Navbar } from "@/components/navbar";
+import Navbar from "@/shared/components/Navbar";
+import { ErrorBoundary } from "next/dist/client/components/error-boundary";
+import Error from "../shared/components/Error/Error";
 
 export const metadata: Metadata = {
   title: {
@@ -38,16 +40,18 @@ export default function RootLayout({
       <body
         className={clsx(
           "min-h-screen bg-background font-sans antialiased",
-          fontSans.variable,
+          fontSans.variable
         )}
       >
         <Providers themeProps={{ attribute: "class", defaultTheme: "dark" }}>
-          <div className="relative flex flex-col h-screen">
+          <div className="relative  flex flex-col h-screen">
             <Navbar />
-            <main className="container mx-auto max-w-7xl pt-16 px-14 flex-grow">
-              {children}
-            </main>
-            <footer className="w-full flex items-center justify-center py-3">
+            <ErrorBoundary errorComponent={Error}>
+              <main className="container mx-auto max-w-7xl pt-16 px-14 flex-grow">
+                {children}
+              </main>
+            </ErrorBoundary>
+            <footer className="w-full flex items-center justify-center py-3 mt-auto">
               <Link
                 isExternal
                 className="flex items-center gap-1 text-current"

@@ -9,7 +9,29 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  lint-and-test:
+    name: Lint and Test (CI)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test
   build-and-push-image:
+    name: Deploy to VPS (CD)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -40,7 +62,7 @@ jobs:
         with:
           context: .
           push: true
-          no-cache: true   
+          no-cache: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.run_number }}
@@ -48,7 +70,6 @@ jobs:
 
       - name: Debug tags
         run: echo ${{ steps.meta.outputs.tags }}
-
 
       - name: Run in server
         uses: appleboy/ssh-action@v0.1.5
@@ -61,4 +82,4 @@ jobs:
             docker stop ${{ vars.SERVER_CONTAINER }}
             docker rm ${{ vars.SERVER_CONTAINER }}
             docker rmi $(docker images -q | tail -n +5)
-            docker run -p 3001:3000 -d --name ${{ vars.SERVER_CONTAINER }} ghcr.io/freddysae0/coup:latest 
+            docker run -p 3001:3000 -d --name ${{ vars.SERVER_CONTAINER }} ghcr.io/freddysae0/coup:latest

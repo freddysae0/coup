@@ -6,6 +6,7 @@ export type Action =
   | "Assassinate" // Assassin Action: Pay 3 coins to assassinate another player
   | "Steal" // Captain Action: Take 2 coins from another player (or 1 if they have only 1)
   | "Exchange" // Ambassador Action: Exchange cards with the Court
+  | "Lose card" // Ambassador Action: Exchange cards with the Court
   | "None"; // None Action (only Contessa have it)
 
 export type CounterAction =
@@ -45,13 +46,15 @@ export type ChallengeOutcome =
   | "DenyForeign aid"
   | "ChallengeDenyForeign aid";
 
-export type DiscussionAction = Action | ChallengeOutcome;
-
 export type Discussion = {
   id: string;
   player: Player;
-  action: DiscussionAction;
+  action: Action;
   target?: Player;
+  playersVotingToSkip: Player[];
+  step: number;
+  playerWhomBeBlessed: Player;
+  playerWhomBeCoursed: Player;
 };
 
 export const dukeCard: Card = {

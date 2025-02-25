@@ -8,8 +8,8 @@ import { Link } from "@heroui/link";
 import NextLink from "next/link";
 
 import { siteConfig } from "@/config/site";
-import { ThemeSwitch } from "@/components/theme-switch";
-import { LinkedinIcon, GithubIcon } from "@/components/icons";
+import { ThemeSwitch } from "@/shared/theme-switch";
+import { LinkedinIcon, GithubIcon } from "@/shared/icons";
 
 export const Navbar = () => {
   return (
@@ -51,3 +51,5 @@ export const Navbar = () => {
     </HeroUINavbar>
   );
 };
+
+export default Navbar;

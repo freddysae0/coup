@@ -17,17 +17,11 @@ import {
 import React, { useEffect, useState } from "react";
 import { Button } from "@heroui/button";
 
-import { GameOverComponent } from "./GameOverComponent";
+import GameOver from "./components/GameOver";
 
 import { useWebSocket } from "@/app/providers";
-import {
-  Action,
-  Card,
-  Discussion,
-  DiscussionAction,
-  Player,
-} from "@/types/game";
-import { subtitle } from "@/components/primitives";
+import { Action, Card, Discussion, Player } from "@/types/game";
+import { subtitle } from "@/shared/primitives";
 
 interface RunningGameProps {
   room: string;
@@ -39,56 +33,72 @@ interface RunningGameProps {
 }
 
 type DiscussionMeta = {
-  [key: string]: {
+  [key: string]: Array<{
     title: (playerName: string) => string;
     notification?: (discussion: Discussion | null) => string;
 
     description: string;
     okButton: string;
     cancelButton?: string;
-  };
+  }>;
 };
 const discussionMeta: DiscussionMeta = {
-  Default: {
-    title: (playerName: string) => `${playerName} is taking an action`,
-    description: `Will you challenge?`,
-    notification: (currentDiscussion: Discussion | null) =>
-      `${currentDiscussion?.player.name} is taking an action to ${currentDiscussion?.target?.name}`,
-    okButton: "Challenge",
-    cancelButton: "Skip",
-  },
+  Default: [
+    {
+      title: (playerName: string) => `${playerName} is taking an action`,
+      description: `Will you challenge?`,
+      notification: (currentDiscussion: Discussion | null) =>
+        `${currentDiscussion?.player.name} is taking an action to ${currentDiscussion?.target?.name}`,
+      okButton: "Challenge",
+      cancelButton: "Skip",
+    },
+  ],
   //'Income': {},
-  "Foreign aid": {
-    title: (playerName: string) => `${playerName} is taking foreign aid`,
-    description: `Will try to stop that?`,
-    okButton: "Deny foreign aid",
-    cancelButton: "Skip",
-  },
-  Coup: {
-    title: (playerName: string) => `${playerName} is couping you`,
-    notification: (currentDiscussion: Discussion | null) =>
-      `${currentDiscussion?.player.name} is couping ${currentDiscussion?.target?.name}!!!`,
+  "Foreign aid": [
+    {
+      title: (playerName: string) => `${playerName} is taking foreign aid`,
+      description: `Will try to stop that?`,
+      okButton: "Deny foreign aid",
+      cancelButton: "Skip",
+    },
+    {
+      title: (playerName: string) => `${playerName} denied your foreign aid`,
+      description: `Do you think they might be a duke?`,
+      okButton: "Challenge",
+      cancelButton: "Skip",
+    },
+  ],
+  Coup: [
+    {
+      title: (playerName: string) => `${playerName} is couping you`,
+      notification: (currentDiscussion: Discussion | null) =>
+        `${currentDiscussion?.player.name} is couping ${currentDiscussion?.target?.name}!!!`,
 
-    description: `You have to throw one card`,
-    okButton: "Throw card",
-  },
-  "CounterForeign aid": {
-    title: (playerName: string) => `${playerName} is couping you`,
-    description: `You have to throw one card`,
-    okButton: "Throw card",
-  },
-  "Wins challenge": {
-    title: (playerName: string) =>
-      `You have lose one challenge with ${playerName}.`,
-    description: `You have to throw one card`,
-    okButton: "Throw card",
-  },
-  "DenyForeign aid": {
-    title: (playerName: string) => `${playerName} is trying to deny yoy.`,
-    description: `Do you want to challenge?`,
-    okButton: "Challenge",
-    cancelButton: "Skip",
-  },
+      description: `You have to throw one card`,
+      okButton: "Throw card",
+    },
+    {
+      title: (playerName: string) => `You have lose one challenge.`,
+      description: `You have to throw one card`,
+      okButton: "Throw card",
+    },
+  ],
+
+  "Lose card": [
+    {
+      title: (playerName: string) => `You have lose`,
+      description: `You have to throw one card`,
+      okButton: "Throw card",
+    },
+  ],
+  "DenyForeign aid": [
+    {
+      title: (playerName: string) => `${playerName} is trying to deny yoy.`,
+      description: `Do you want to challenge?`,
+      okButton: "Challenge",
+      cancelButton: "Skip",
+    },
+  ],
   /* 'Tax': {},
     'Assassinate': {},
     'Exchange': {},
@@ -116,7 +126,7 @@ export const StyledRadioButton = (props: any) => {
       classNames={{
         base: cn(
           "inline-flex m-0  items-center justify-between",
-          "flex-row-reverse max-w-[500px] cursor-pointer rounded-lg gap-4 p-2 border-2 border-transparent",
+          "flex-row-reverse max-w-[500px] cursor-pointer rounded-lg gap-4 p-2 border-2 border-transparent"
         ),
       }}
       color="danger"
@@ -146,8 +156,9 @@ const RunningGame: React.FC<RunningGameProps> = ({
   } = useDisclosure();
   const [selectedTargetId, setSelectedTargetId] = useState<string>("");
   const [selectedAction, setSelectedAction] = useState<string>("");
+  const [selectedCard, setSelectedCard] = useState<number>(0);
   const [activeDiscussion, setActiveDiscussion] = useState<Discussion | null>(
-    null,
+    null
   );
   const [globalActiveDiscussion, setGlobalActiveDiscussion] =
     useState<Discussion | null>(null);
@@ -177,54 +188,66 @@ const RunningGame: React.FC<RunningGameProps> = ({
   const getSelectedTarget = () => {
     return players.find((p) => p.id == selectedTargetId);
   };
-  const sendAction = (action: DiscussionAction, extraData: any = {}) => {
+
+  const sendAction = (action: Action, extraData: any = {}) => {
+    let currentStep = globalActiveDiscussion?.step || 0;
     const payload = {
       type: "playTurn",
       room,
-      player,
       action,
+      step: currentStep,
+      player,
+      playerWhomBeBlessed:
+        currentStep == 0 ? player : globalActiveDiscussion?.playerWhomBeBlessed,
+      playerWhomBeCoursed:
+        currentStep == 0
+          ? extraData.target
+          : globalActiveDiscussion?.playerWhomBeCoursed,
+
       ...extraData,
     };
 
     socket?.send(JSON.stringify(payload));
   };
-  const sendSelectedAction = () => {
-    const actionMap: Record<string, { action: DiscussionAction; extra?: any }> =
-      {
-        Coup: { action: "Coup", extra: { target: getSelectedTarget() } },
-        "Foreign aid deny": {
-          action: "DenyForeign aid",
-          extra: {
-            target: activeDiscussion?.player,
-            discussionId: activeDiscussion?.id,
-          },
+  const sendSelectedAction = (
+    expicit_action: Action = "None",
+    resolve: boolean = false
+  ) => {
+    const actionMap: Record<string, { action: Action; extra?: any }> = {
+      Coup: { action: "Coup", extra: { target: getSelectedTarget() } },
+      "Foreign aid": {
+        action: "Foreign aid",
+        extra: {
+          target:
+            globalActiveDiscussion?.step == 0 ||
+            globalActiveDiscussion == undefined
+              ? { name: "all" }
+              : globalActiveDiscussion.player,
+          resolve: resolve,
         },
-        "ChallengeDenyForeign aid": {
-          action: "ChallengeDenyForeign aid",
-          extra: {
-            target: activeDiscussion?.player,
-            discussionId: activeDiscussion?.id,
-          },
+      },
+      "Lose card": {
+        action: "Lose card",
+        extra: {
+          cardToThrow: selectedCard,
         },
-      };
+      },
+    };
 
-    if (selectedAction.startsWith("Throw")) {
-      const cardName = selectedAction.split(" ")[1];
-
-      sendAction(
-        activeDiscussion?.action === "Wins challenge"
-          ? "Lose a card"
-          : "ResolveCoup",
-        { target: cardName, discussionId: activeDiscussion?.id },
-      );
-    } else {
-      const { action, extra } = actionMap[selectedAction] || {
-        action: selectedAction,
-        extra: {},
-      };
-
-      sendAction(action, extra);
+    if (expicit_action != "None") {
+      setSelectedAction(expicit_action);
     }
+
+    const { action, extra } = actionMap[
+      expicit_action != "None" ? expicit_action : selectedAction
+    ] || {
+      action: expicit_action != "None" ? expicit_action : selectedAction,
+      extra: {},
+    };
+
+    console.log(action, extra);
+
+    sendAction(action, extra);
 
     onCloseActionMenu();
   };
@@ -233,14 +256,18 @@ const RunningGame: React.FC<RunningGameProps> = ({
     if (!discussions || discussions.length == 0) {
       setGlobalActiveDiscussion(null);
       onCloseCounterActionMenu();
-
       return;
     }
+
+    console.log(discussions);
+
     const discussion = discussions[discussions.length - 1];
     let foundDiscussion = false;
 
     // Coup, Assasin, Steal case
     setGlobalActiveDiscussion(discussion);
+
+    console.log(discussion, "discussions");
     if (
       discussion.target?.id == player.id ||
       (discussion.target?.name == "all" && discussion.player.id != player.id)
@@ -250,47 +277,17 @@ const RunningGame: React.FC<RunningGameProps> = ({
       onOpenCounterActionMenu();
     }
 
-    if (discussion.action == "Wins challenge") {
-      setSelectedAction("ResolveChallenge");
-    }
-    if (discussion.action == "Foreign aid") {
-      setSelectedAction("Foreign aid deny");
-    }
-    if (discussion.action == "DenyForeign aid") {
-      setSelectedAction("ChallengeDenyForeign aid");
-    }
-
     if (foundDiscussion) {
       return;
     }
   }, [discussions]);
-  useEffect(() => {
-    if (!socket) return;
-    const handleMessage = (event: MessageEvent) => {
-      const msg = JSON.parse(event.data);
-
-      switch (msg.type) {
-        case "turn":
-          break;
-        case "startGame":
-        default:
-          break;
-      }
-    };
-
-    socket.addEventListener("message", handleMessage);
-
-    return () => {
-      socket.removeEventListener("message", handleMessage);
-    };
-  }, [socket]);
 
   return (
     <div className="flex flex-col text-left min-w-full gap-3 min-h-[70vh]">
-      {player.cards.length == 0 && <GameOverComponent win={false} />}
+      {player.cards.length == 0 && <GameOver win={false} />}
       {players.filter((p) => p.cards.length > 0).length == 1 &&
-      players[0].id == player.id ? (
-        <GameOverComponent win={true} />
+      players.filter((p) => p.cards.length > 0)[0].id == player.id ? (
+        <GameOver win={true} />
       ) : (
         <div className="w-full flex flex-col">
           <h6 className="text-2xl">
@@ -303,13 +300,18 @@ const RunningGame: React.FC<RunningGameProps> = ({
             globalActiveDiscussion?.action
               ? globalActiveDiscussion.action
               : "Default"
-          ].notification &&
+          ][globalActiveDiscussion?.step ? globalActiveDiscussion.step - 1 : 0]
+            .notification &&
             globalActiveDiscussion && (
               <p className={subtitle(discussionMeta)}>
                 {discussionMeta[
                   globalActiveDiscussion?.action
                     ? globalActiveDiscussion.action
                     : "Default"
+                ][
+                  globalActiveDiscussion?.step
+                    ? globalActiveDiscussion.step - 0
+                    : 1
                 ].notification?.(globalActiveDiscussion)}
               </p>
             )}
@@ -336,7 +338,7 @@ const RunningGame: React.FC<RunningGameProps> = ({
           </div>
           <Button
             color="secondary"
-            isDisabled={turn.id != player.id}
+            isDisabled={turn.id != player.id || player.coins >= 10}
             variant="ghost"
             onPress={() => {
               setSelectedAction("");
@@ -347,14 +349,22 @@ const RunningGame: React.FC<RunningGameProps> = ({
           </Button>
           <Button
             color="default"
-            isDisabled={turn.id != player.id}
+            isDisabled={turn.id != player.id || player.coins >= 10}
             variant="ghost"
             onPress={() => sendAction("Income")}
           >
             Income 💵
           </Button>
-          {/*    <Button isDisabled={turn.id != player.id} onPress={() => sendAction("Foreign aid")} variant='ghost' color='default' >Foreign Aid 🌍</Button>
-           */}{" "}
+          <Button
+            isDisabled={turn.id != player.id || player.coins >= 10}
+            onPress={() => {
+              sendSelectedAction("Foreign aid");
+            }}
+            variant="ghost"
+            color="default"
+          >
+            Foreign Aid 🌍
+          </Button>{" "}
           <Button
             color="default"
             isDisabled={turn.id != player.id || player.coins < 7}
@@ -500,7 +510,10 @@ const RunningGame: React.FC<RunningGameProps> = ({
                     <Button color="default" variant="light" onPress={onClose}>
                       Close
                     </Button>
-                    <Button color="primary" onPress={sendSelectedAction}>
+                    <Button
+                      color="primary"
+                      onPress={() => sendSelectedAction()}
+                    >
                       Action
                     </Button>
                   </ModalFooter>
@@ -526,6 +539,8 @@ const RunningGame: React.FC<RunningGameProps> = ({
                         activeDiscussion.action
                           ? activeDiscussion.action
                           : "Default"
+                      ][
+                        activeDiscussion.step ? activeDiscussion.step - 1 : 0
                       ].title(activeDiscussion.player.name)}{" "}
                     </ModalHeader>
                     <ModalBody className="max-h-[80vh] overflow-auto ">
@@ -535,18 +550,23 @@ const RunningGame: React.FC<RunningGameProps> = ({
                             activeDiscussion.action
                               ? activeDiscussion.action
                               : "Default"
+                          ][
+                            activeDiscussion.step
+                              ? activeDiscussion.step - 1
+                              : 0
                           ].description
                         }
-                        value={selectedAction}
-                        onChange={(e) => setSelectedAction(e.target.value)}
+                        value={selectedCard.toString()}
+                        onChange={(e) =>
+                          setSelectedCard(parseInt(e.target.value))
+                        }
                       >
-                        {(activeDiscussion.action == "Coup" ||
-                          activeDiscussion.action == "Wins challenge") &&
+                        {activeDiscussion.action == "Lose card" &&
                           player.cards.map((card, index) => (
                             <StyledRadioButton
                               key={index}
                               description={`Action: ${card.action}, Counteraction: ${card.counteraction}`}
-                              value={`Throw ${card.name}`}
+                              value={index.toString()}
                             >
                               {card.name}
                             </StyledRadioButton>
@@ -558,17 +578,25 @@ const RunningGame: React.FC<RunningGameProps> = ({
                         activeDiscussion.action
                           ? activeDiscussion.action
                           : "Default"
-                      ].cancelButton && (
+                      ][activeDiscussion.step ? activeDiscussion.step - 1 : 0]
+                        .cancelButton && (
                         <Button
                           color="default"
                           variant="light"
-                          onPress={onClose}
+                          onPress={() => {
+                            sendSelectedAction(activeDiscussion.action, true);
+                            onCloseCounterActionMenu();
+                          }}
                         >
                           {
                             discussionMeta[
                               activeDiscussion.action
                                 ? activeDiscussion.action
                                 : "Default"
+                            ][
+                              activeDiscussion.step
+                                ? activeDiscussion.step - 1
+                                : 1
                             ].cancelButton
                           }
                         </Button>
@@ -576,7 +604,7 @@ const RunningGame: React.FC<RunningGameProps> = ({
                       <Button
                         color="primary"
                         onPress={() => {
-                          sendSelectedAction();
+                          sendSelectedAction(activeDiscussion.action);
                           onCloseCounterActionMenu();
                         }}
                       >
@@ -585,6 +613,10 @@ const RunningGame: React.FC<RunningGameProps> = ({
                             activeDiscussion.action
                               ? activeDiscussion.action
                               : "Default"
+                          ][
+                            activeDiscussion.step
+                              ? activeDiscussion.step - 1
+                              : 0
                           ].okButton
                         }
                       </Button>

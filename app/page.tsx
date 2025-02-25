@@ -6,7 +6,10 @@ import { v4 } from "uuid";
 
 export default function Home() {
   const [uuid, setUUID] = useState("");
-
+  /* 
+  Uncomment to test the error boundary
+  throw new Error("Test error");
+   */
   useEffect(() => {
     setUUID(v4());
   }, []);

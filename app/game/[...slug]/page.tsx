@@ -6,13 +6,13 @@ import { Input } from "@heroui/input";
 
 import { createDeck, createThrows } from "../utils";
 
-import PlayersComponent from "./components/PlayersComponent";
+import PlayersComponent from "./components/AllPlayers";
 import RunningGame from "./components/RunningGame";
 
 import { useWebSocket } from "@/app/providers";
-import WebSocketComponent from "@/components/websocket";
+import WebSocketComponent from "@/shared/websocket";
 import { Card, Discussion, Player } from "@/types/game";
-import { title, subtitle } from "@/components/primitives";
+import { title, subtitle } from "@/shared/primitives";
 
 export default function Game() {
   const [isGameStarted, setIsGameStarted] = useState(false);
@@ -37,7 +37,7 @@ export default function Game() {
     setPlayer(player);
     localStorage.setItem("player", JSON.stringify(player));
     socket?.send(
-      JSON.stringify({ type: "updatePlayerName", player: player, room: room }),
+      JSON.stringify({ type: "updatePlayerName", player: player, room: room })
     );
   };
   const gameStarts = () => {
@@ -111,12 +111,6 @@ export default function Game() {
                   Start Game
                 </Button>
               )}
-              {/* 
-              <h2 className={"text-left"}>Room Link:</h2>
-
-              <Snippet color="secondary" symbol="">
-                {"..." + room.split("-")[4]}
-              </Snippet> */}
 
               <h2 className={"text-left"}>Insert your nickname:</h2>
               <form
