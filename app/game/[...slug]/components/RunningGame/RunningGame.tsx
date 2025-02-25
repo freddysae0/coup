@@ -43,7 +43,7 @@ export const StyledRadioButton = (props: any) => {
       classNames={{
         base: cn(
           "inline-flex m-0  items-center justify-between",
-          "flex-row-reverse max-w-[500px] cursor-pointer rounded-lg gap-4 p-2 border-2 border-transparent"
+          "flex-row-reverse max-w-[500px] cursor-pointer rounded-lg gap-4 p-2 border-2 border-transparent",
         ),
       }}
       color="danger"
@@ -75,7 +75,7 @@ const RunningGame: React.FC<RunningGameProps> = ({
   const [selectedAction, setSelectedAction] = useState<string>("");
   const [selectedCardNumber, setSelectedCardNumber] = useState<number>(0);
   const [activeDiscussion, setActiveDiscussion] = useState<Discussion | null>(
-    null
+    null,
   );
   const [globalActiveDiscussion, setGlobalActiveDiscussion] =
     useState<Discussion | null>(null);
@@ -128,7 +128,7 @@ const RunningGame: React.FC<RunningGameProps> = ({
   };
   const sendSelectedAction = (
     expicit_action: Action = "None",
-    resolve: boolean = false
+    resolve: boolean = false,
   ) => {
     const actionMap: Record<string, { action: Action; extra?: any }> = {
       Coup: { action: "Coup", extra: { target: getSelectedTarget() } },
@@ -437,12 +437,12 @@ const RunningGame: React.FC<RunningGameProps> = ({
           {/* Cunteractions --------------------> */}
           <CounterActionModal
             activeDiscussion={activeDiscussion}
+            isOpen={isOpenCounterActionMenu}
             player={player}
             selectedCardNumber={selectedCardNumber}
             sendSelectedAction={sendSelectedAction}
             setSelectedCardNumber={setSelectedCardNumber}
             onCloseCounterActionMenu={onCloseCounterActionMenu}
-            isOpen={isOpenCounterActionMenu}
           />
         </div>
       )}
