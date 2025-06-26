@@ -21,7 +21,6 @@ import GameOver from "./components/GameOver";
 import { cardsImg, discussionMeta, icons } from "./RunningGame.utils";
 import CounterActionModal from "./components/CounteractionModal/CounterActionModal";
 
-import { useWebSocket } from "@/app/providers";
 import { Action, Card, Discussion, Player } from "@/types/game";
 import { subtitle } from "@/shared/primitives";
 
@@ -79,7 +78,6 @@ const RunningGame: React.FC<RunningGameProps> = ({
   );
   const [globalActiveDiscussion, setGlobalActiveDiscussion] =
     useState<Discussion | null>(null);
-  const { socket } = useWebSocket();
   const handleActionsModal = () => {
     onOpenActionMenu();
   };
@@ -106,8 +104,8 @@ const RunningGame: React.FC<RunningGameProps> = ({
     return players.find((p) => p.id == selectedTargetId);
   };
 
-  const sendAction = (action: Action, extraData: any = {}) => {
-    let currentStep = globalActiveDiscussion?.step || 0;
+  const sendAction = async (action: Action, extraData: any = {}) => {
+    const currentStep = globalActiveDiscussion?.step || 0;
     const payload = {
       type: "playTurn",
       room,
@@ -124,7 +122,11 @@ const RunningGame: React.FC<RunningGameProps> = ({
       ...extraData,
     };
 
-    socket?.send(JSON.stringify(payload));
+    await fetch(`/api/game/${room}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
   };
   const sendSelectedAction = (
     expicit_action: Action = "None",
