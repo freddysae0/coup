@@ -4,8 +4,8 @@ import { NextResponse } from "next/server";
 
 const rooms = new Map<string, State & { openDiscussions: Discussion[] }>();
 
-export async function GET(
-  request: Request,
+export function GET(
+  _request: Request,
   { params }: { params: { room: string } },
 ) {
   const state = rooms.get(params.room);
