@@ -1,155 +1,76 @@
 "use client";
-import { v4 } from "uuid";
 import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import { Button } from "@heroui/button";
-import { Input } from "@heroui/input";
+import { Link } from "@heroui/link";
+import { Spinner } from "@heroui/react";
+import { addToast } from "@heroui/toast";
 
-import { createDeck, createThrows } from "./page.utils";
-import PlayersComponent from "./components/AllPlayers";
+import Lobby from "./components/Lobby";
 import RunningGame from "./components/RunningGame";
 
-import { useWebSocket } from "@/app/providers";
-import WebSocketComponent from "@/shared/websocket";
-import { Card, Discussion, Player } from "@/types/game";
+import { useCoupSocket } from "@/shared/useCoupSocket";
 import { title, subtitle } from "@/shared/primitives";
 
 export default function Game() {
-  const [isGameStarted, setIsGameStarted] = useState(false);
-  const [, setPathUrl] = useState("");
-  const [, setRouteUuid] = useState("");
-  const [name, setName] = useState("");
-  const [, setBaseUrl] = useState("");
+  const params = useParams<{ slug: string[] }>();
+  const slug = params?.slug ?? [];
+  const room = slug.length ? slug[slug.length - 1] : null;
+  const [fatalError, setFatalError] = useState<string | null>(null);
 
-  let newPlayer = {} as Player;
-  const [discussions, setDiscussions] = useState<Discussion[]>([]);
-  const [turn, setTurn] = useState<Player>(newPlayer);
-  const [player, setPlayer] = useState<Player>(newPlayer);
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [room, setRoom] = useState<string>("none");
-  const [deck, setDeck] = useState<Card[]>([]);
-  const [throws, setThrows] = useState<Card[]>([]);
-  const { socket } = useWebSocket();
-
-  const handleNamingButton = () => {
-    if (!player) return;
-    player.name = name;
-    setPlayer(player);
-    localStorage.setItem("player", JSON.stringify(player));
-    socket?.send(
-      JSON.stringify({ type: "updatePlayerName", player: player, room: room }),
-    );
-  };
-  const gameStarts = () => {
-    setIsGameStarted(true);
-  };
-  const sendStartGameSignal = () => {
-    socket?.send(JSON.stringify({ type: "startGame", room: room }));
-  };
+  const { state, status, send } = useCoupSocket(room, (message) => {
+    // Being refused at the door (game already started, room full) is final.
+    if (/already started|room is full|Invalid room/.test(message)) {
+      setFatalError(message);
+    } else {
+      addToast({ title: message, color: "danger", timeout: 3500 });
+    }
+  });
 
   useEffect(() => {
-    const ls_player = localStorage.getItem("player");
+    if (state) setFatalError(null);
+  }, [state]);
 
-    if (ls_player) {
-      newPlayer = JSON.parse(ls_player) as Player;
-    } else {
-      newPlayer = {
-        id: v4(),
-        name: "You",
-        cards: [],
-        isHost: false,
-        coins: 0,
-        isBeingChallenged: false,
-      };
-      localStorage.setItem("player", JSON.stringify(newPlayer));
-    }
-
-    setName(newPlayer.name);
-    setPlayers([...players, newPlayer as Player]);
-    setPlayer(newPlayer as Player);
-    setDeck(createDeck());
-    setThrows(createThrows());
-    setBaseUrl(window.location.origin);
-    setPathUrl(window.location.pathname);
-    const parts = window.location.pathname.split("/");
-    const routeUuid = parts[parts.length - 1];
-
-    setRoom(routeUuid);
-    setRouteUuid(routeUuid);
-  }, []);
-
-  if (room !== "none")
+  if (status === "left") {
     return (
-      <WebSocketComponent
-        deck={deck}
-        gameStarts={gameStarts}
-        player={player as Player}
-        players={players}
-        room={room}
-        setDeck={setDeck}
-        setDiscussions={setDiscussions}
-        setPlayer={setPlayer}
-        setPlayers={setPlayers}
-        setThrows={setThrows}
-        setTurn={setTurn}
-        throws={throws}
-      >
-        <div className="w-full">
-          {player && !isGameStarted && (
-            <div className="flex flex-col gap-3">
-              <h1 className={title()}>Coup room</h1>
-              <p className={subtitle()}>
-                Invite your friends to this URL link and play together.
-              </p>
-
-              {players.length > 1 && player?.isHost && (
-                <Button
-                  color="danger"
-                  variant="flat"
-                  onPress={sendStartGameSignal}
-                >
-                  Start Game
-                </Button>
-              )}
-
-              <h2 className={"text-left"}>Insert your nickname:</h2>
-              <form
-                className="flex gap-2"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleNamingButton();
-                }}
-              >
-                <Input
-                  className="mb-3"
-                  color="default"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-                <Button
-                  color="primary"
-                  variant="flat"
-                  onPress={handleNamingButton}
-                >
-                  Update
-                </Button>
-              </form>
-
-              <h2 className={"text-left"}>Players in the room:</h2>
-              <PlayersComponent playerId={player.id} players={players} />
-            </div>
-          )}
-          {isGameStarted && (
-            <RunningGame
-              deck={deck}
-              discussions={discussions}
-              player={player}
-              players={players}
-              room={room}
-              turn={turn}
-            />
-          )}
-        </div>
-      </WebSocketComponent>
+      <div className="flex flex-col gap-3">
+        <h1 className={title()}>You left the game</h1>
+        <Link href="/">Back to home</Link>
+      </div>
     );
-  else return null;
+  }
+
+  if (fatalError && !state) {
+    return (
+      <div className="flex flex-col gap-3">
+        <h1 className={title({ size: "sm" })}>Can&apos;t join this room</h1>
+        <p className={subtitle()}>{fatalError}</p>
+        <Button as={Link} color="primary" href="/" variant="flat">
+          Start a new game
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full flex flex-col gap-3">
+      {status !== "open" && (
+        <div className="flex items-center justify-center gap-2 rounded-lg bg-warning-50 p-2 text-sm text-warning-700">
+          <Spinner color="warning" size="sm" />
+          {status === "connecting"
+            ? "Connecting to the server…"
+            : "Connection lost, reconnecting…"}
+        </div>
+      )}
+      {!state ? (
+        <div className="flex justify-center py-10">
+          <Spinner label="Joining room…" />
+        </div>
+      ) : state.phase === "lobby" ? (
+        <Lobby send={send} state={state} />
+      ) : (
+        <RunningGame send={send} state={state} />
+      )}
+    </div>
+  );
 }
