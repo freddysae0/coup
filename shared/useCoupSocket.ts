@@ -31,9 +31,11 @@ export function savePlayerName(name: string) {
 
 export function getWsUrl() {
   if (process.env.NEXT_PUBLIC_WS_URL) return process.env.NEXT_PUBLIC_WS_URL;
-  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+  const { protocol, host, hostname } = window.location;
 
-  return `${protocol}://${window.location.hostname}:8000`;
+  // Behind HTTPS a reverse proxy forwards /ws to the backend. On plain HTTP
+  // (localhost, LAN, bare server IP) the backend listens on port 8000.
+  return protocol === "https:" ? `wss://${host}/ws` : `ws://${hostname}:8000`;
 }
 
 /**
