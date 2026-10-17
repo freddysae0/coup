@@ -1,453 +1,213 @@
 "use client";
-import { card } from "@heroui/theme";
-import {
-  Card as CardUI,
-  CardBody,
-  Image,
-  Modal,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  useDisclosure,
-  RadioGroup,
-  Radio,
-  cn,
-} from "@heroui/react";
-import React, { useEffect, useState } from "react";
-import { Button } from "@heroui/button";
+import React, { useEffect, useRef } from "react";
+import { Button, Card, CardBody, Image } from "@heroui/react";
+import clsx from "clsx";
 
 import GameOver from "./components/GameOver";
-import { cardsImg, discussionMeta, icons } from "./RunningGame.utils";
-import CounterActionModal from "./components/CounteractionModal/CounterActionModal";
+import PlayerSeat from "./components/PlayerSeat";
+import ActionPanel from "./components/ActionPanel";
+import ResponsePanel from "./components/ResponsePanel";
+import CardPicker from "./components/CardPicker";
+import Countdown from "./components/Countdown";
+import { cardsImg, describePhase, icons } from "./RunningGame.utils";
 
-import { useWebSocket } from "@/app/providers";
-import { Action, Card, Discussion, Player } from "@/types/game";
+import { ClientMessage, GameView } from "@/types/game";
 import { subtitle } from "@/shared/primitives";
 
 interface RunningGameProps {
-  room: string;
-  player: Player;
-  players: Player[];
-  deck: Card[];
-  turn: Player;
-  discussions: Discussion[];
+  state: GameView;
+  send: (msg: ClientMessage) => boolean;
 }
 
-export const StyledRadioButton = (props: any) => {
-  const { children, ...otherProps } = props;
+const RunningGame: React.FC<RunningGameProps> = ({ state, send }) => {
+  const me = state.players.find((p) => p.id === state.you);
+  const { options } = state;
 
-  return (
-    <Radio
-      {...otherProps}
-      classNames={{
-        base: cn(
-          "inline-flex m-0  items-center justify-between",
-          "flex-row-reverse max-w-[500px] cursor-pointer rounded-lg gap-4 p-2 border-2 border-transparent",
-        ),
-      }}
-      color="danger"
-    >
-      {children}
-    </Radio>
-  );
-};
+  if (!me) return null;
 
-const RunningGame: React.FC<RunningGameProps> = ({
-  room,
-  player,
-  deck,
-  players,
-  turn,
-  discussions,
-}) => {
-  const {
-    isOpen: isOpenActionMenu,
-    onOpen: onOpenActionMenu,
-    onClose: onCloseActionMenu,
-  } = useDisclosure();
-  const {
-    isOpen: isOpenCounterActionMenu,
-    onOpen: onOpenCounterActionMenu,
-    onClose: onCloseCounterActionMenu,
-  } = useDisclosure();
-  const [selectedTargetId, setSelectedTargetId] = useState<string>("");
-  const [selectedAction, setSelectedAction] = useState<string>("");
-  const [selectedCardNumber, setSelectedCardNumber] = useState<number>(0);
-  const [activeDiscussion, setActiveDiscussion] = useState<Discussion | null>(
-    null,
-  );
-  const [globalActiveDiscussion, setGlobalActiveDiscussion] =
-    useState<Discussion | null>(null);
-  const { socket } = useWebSocket();
-  const handleActionsModal = () => {
-    onOpenActionMenu();
-  };
+  if (state.phase === "gameOver") {
+    const winner = state.players.find((p) => p.id === state.winnerId);
 
-  /* 
-        action(req.room, req.player, req.action, req.target, game);
-     */
-  const playerHaveAction = (action: Action) => {
-    if (action == "Income" || action == "Coup" || action == "Foreign aid") {
-      return true;
-    }
-
-    return player.cards.some((card) => card.action == action);
-  };
-  const HaveActionText = (action: Action) => {
     return (
-      <span className="text-success">
-        {playerHaveAction(action) ? "CARDS" : ""}
-      </span>
+      <div className="flex flex-col gap-3">
+        <GameOver
+          canRestart={options.canRestart}
+          win={state.winnerId === state.you}
+          winnerName={winner?.name ?? "Nobody"}
+          onRestart={() => send({ type: "restart" })}
+        />
+        <GameLog log={state.log} />
+      </div>
     );
-  };
+  }
 
-  const getSelectedTarget = () => {
-    return players.find((p) => p.id == selectedTargetId);
-  };
-
-  const sendAction = (action: Action, extraData: any = {}) => {
-    let currentStep = globalActiveDiscussion?.step || 0;
-    const payload = {
-      type: "playTurn",
-      room,
-      action,
-      step: currentStep,
-      player,
-      playerWhomBeBlessed:
-        currentStep == 0 ? player : globalActiveDiscussion?.playerWhomBeBlessed,
-      playerWhomBeCoursed:
-        currentStep == 0
-          ? extraData.target
-          : globalActiveDiscussion?.playerWhomBeCoursed,
-
-      ...extraData,
-    };
-
-    socket?.send(JSON.stringify(payload));
-  };
-  const sendSelectedAction = (
-    expicit_action: Action = "None",
-    resolve: boolean = false,
-  ) => {
-    const actionMap: Record<string, { action: Action; extra?: any }> = {
-      Coup: { action: "Coup", extra: { target: getSelectedTarget() } },
-      "Foreign aid": {
-        action: "Foreign aid",
-        extra: {
-          target:
-            globalActiveDiscussion?.step == 0 ||
-            globalActiveDiscussion == undefined
-              ? { name: "all" }
-              : globalActiveDiscussion.player,
-          resolve: resolve,
-        },
-      },
-      "Lose card": {
-        action: "Lose card",
-        extra: {
-          cardToThrow: selectedCardNumber,
-        },
-      },
-    };
-
-    if (expicit_action != "None") {
-      setSelectedAction(expicit_action);
-    }
-
-    const { action, extra } = actionMap[
-      expicit_action != "None" ? expicit_action : selectedAction
-    ] || {
-      action: expicit_action != "None" ? expicit_action : selectedAction,
-      extra: {},
-    };
-
-    sendAction(action, extra);
-
-    onCloseActionMenu();
-  };
-
-  useEffect(() => {
-    if (!discussions || discussions.length == 0) {
-      setGlobalActiveDiscussion(null);
-      onCloseCounterActionMenu();
-
-      return;
-    }
-
-    const discussion = discussions[discussions.length - 1];
-    let foundDiscussion = false;
-
-    // Coup, Assasin, Steal case
-    setGlobalActiveDiscussion(discussion);
-
-    if (
-      discussion.target?.id == player.id ||
-      (discussion.target?.name == "all" && discussion.player.id != player.id)
-    ) {
-      foundDiscussion = true;
-      setActiveDiscussion(discussion);
-      onOpenCounterActionMenu();
-    }
-
-    if (foundDiscussion) {
-      return;
-    }
-  }, [discussions]);
+  const opponents = state.players.filter((p) => p.id !== state.you);
+  const isMyTurn = state.turnId === state.you;
+  const respond = (msg: ClientMessage) =>
+    send({ ...msg, windowId: state.windowId } as ClientMessage);
 
   return (
-    <div className="flex flex-col text-left min-w-full gap-3 min-h-[70vh]">
-      {player.cards.length == 0 && <GameOver win={false} />}
-      {players.filter((p) => p.cards.length > 0).length == 1 &&
-      players.filter((p) => p.cards.length > 0)[0].id == player.id ? (
-        <GameOver win={true} />
-      ) : (
-        <div className="w-full flex flex-col">
-          <h6 className="text-2xl">
-            Hello {player.name}
-            {turn.id == player.id && (
-              <span className="text-primary">, It&apos;s your yourn</span>
+    <div className="flex flex-col text-left min-w-full gap-4 min-h-[70vh]">
+      <div className="flex flex-col gap-1">
+        <h6 className="text-2xl">
+          Hello {me.name}
+          {isMyTurn && me.alive && (
+            <span className="text-primary">, it&apos;s your turn</span>
+          )}
+        </h6>
+        <p className={subtitle({ class: "mt-0" })} data-testid="phase">
+          {describePhase(state)}
+        </p>
+        <Countdown deadline={state.deadline} total={state.responseTimeoutMs} />
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+        {opponents.map((p) => (
+          <PlayerSeat
+            key={p.id}
+            isTarget={state.pending?.targetId === p.id}
+            isTurn={state.turnId === p.id}
+            isWaitingOn={state.waitingOn.includes(p.id)}
+            player={p}
+          />
+        ))}
+      </div>
+
+      <Card className={clsx(isMyTurn && "border-2 border-primary")}>
+        <CardBody className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="font-semibold">
+              Your cards {!me.alive && "— you are out"}
+            </span>
+            <span className="flex items-center gap-1" data-testid="my-coins">
+              {me.coins}
+              <Image alt="coins" height={20} radius="none" src={icons.coins} />
+            </span>
+          </div>
+          <div className="flex justify-around gap-2">
+            {me.cards.map((card, index) =>
+              card.role ? (
+                <div key={index} className="flex flex-col items-center gap-1">
+                  <Image
+                    alt={card.role}
+                    className={clsx(
+                      "hover:-translate-y-2",
+                      card.revealed && "grayscale opacity-60",
+                    )}
+                    isBlurred={!card.revealed}
+                    src={cardsImg[card.role]}
+                    width={170}
+                  />
+                  <span
+                    className={clsx(
+                      "text-sm",
+                      card.revealed && "line-through text-default-400",
+                    )}
+                  >
+                    {card.role}
+                  </span>
+                </div>
+              ) : null,
             )}
-          </h6>
-          {discussionMeta[
-            globalActiveDiscussion?.action
-              ? globalActiveDiscussion.action
-              : "Default"
-          ][globalActiveDiscussion?.step ? globalActiveDiscussion.step - 1 : 0]
-            .notification &&
-            globalActiveDiscussion && (
-              <p className={subtitle(discussionMeta)}>
-                {discussionMeta[
-                  globalActiveDiscussion?.action
-                    ? globalActiveDiscussion.action
-                    : "Default"
-                ][
-                  globalActiveDiscussion?.step
-                    ? globalActiveDiscussion.step - 0
-                    : 1
-                ].notification?.(globalActiveDiscussion)}
+          </div>
+
+          {options.actions.length > 0 && (
+            <ActionPanel
+              state={state}
+              onAction={(action, targetId) =>
+                send({ type: "action", action, targetId })
+              }
+            />
+          )}
+          {options.canPass && (
+            <ResponsePanel
+              state={state}
+              onBlock={(role) => respond({ type: "block", role })}
+              onChallenge={() => respond({ type: "challenge" })}
+              onPass={() => respond({ type: "pass" })}
+            />
+          )}
+          {me.alive &&
+            !options.actions.length &&
+            !options.canPass &&
+            !options.loseInfluence &&
+            !options.exchange && (
+              <p className="text-sm text-default-500">
+                Waiting for other players…
               </p>
             )}
-          <div>
-            <div />
-            <div className="flex justify-around">
-              {player.cards.map((card, index) => {
-                if (!card.name) {
-                  return;
-                }
+        </CardBody>
+      </Card>
 
-                return (
-                  <Image
-                    key={index}
-                    isBlurred
-                    alt={card.name}
-                    className="hover:-translate-y-2"
-                    src={cardsImg[card.name]}
-                    width={220}
-                  />
-                );
-              })}
-            </div>
-          </div>
-          <Button
-            color="secondary"
-            isDisabled={turn.id != player.id || player.coins >= 10}
-            variant="ghost"
-            onPress={() => {
-              setSelectedAction("");
-              handleActionsModal();
-            }}
-          >
-            Character Actions
-          </Button>
-          <Button
-            color="default"
-            isDisabled={turn.id != player.id || player.coins >= 10}
-            variant="ghost"
-            onPress={() => sendAction("Income")}
-          >
-            Income 💵
-          </Button>
-          <Button
-            color="default"
-            isDisabled={turn.id != player.id || player.coins >= 10}
-            variant="ghost"
-            onPress={() => {
-              sendSelectedAction("Foreign aid");
-            }}
-          >
-            Foreign Aid 🌍
-          </Button>{" "}
-          <Button
-            color="default"
-            isDisabled={turn.id != player.id || player.coins < 7}
-            variant="ghost"
-            onPress={() => {
-              setSelectedAction("Coup");
-              handleActionsModal();
-            }}
-          >
-            Coup 💥
-          </Button>
-          <CardUI>
-            <CardBody>
-              <div className="flex gap-4">
-                <ul className="flex flex-col gap-1">
-                  {players.map((p) => (
-                    <li
-                      key={p.id}
-                      className={
-                        "h-[25px]" + (p.id == turn.id ? " text-primary" : "")
-                      }
-                    >
-                      {p.name}
-                    </li>
-                  ))}
-                </ul>
-                <ul className="flex flex-col gap-1">
-                  {players.map((player) => (
-                    <li key={player.id} className="flex gap-1">
-                      {player.cards.map((card, cardindex) => (
-                        <Image
-                          key={cardindex}
-                          alt="backcard"
-                          className="hover:-translate-y-1"
-                          height={28}
-                          src={cardsImg.Backcard}
-                        />
-                      ))}
-                    </li>
-                  ))}
-                </ul>
-                <ul className="flex flex-col gap-1">
-                  {players.map((player) => (
-                    <li key={player.id} className="flex gap-1">
-                      {player.coins}
-                      <Image
-                        alt={card.name}
-                        className="hover:-translate-y-1"
-                        height={28}
-                        src={icons.coins}
-                      />
-                    </li>
-                  ))}
-                </ul>
-                <div className="flex gap-3 ">
-                  <p>{deck.length}</p>
-                  <Image
-                    alt={card.name}
-                    className="hover:-translate-y-1"
-                    height={28}
-                    src={cardsImg.Backcard}
-                  />
-                </div>
-              </div>
-            </CardBody>
-          </CardUI>
-          {/* Actions --------------------> */}
-          <Modal
-            isOpen={isOpenActionMenu}
-            size={"md"}
-            onClose={onCloseActionMenu}
-          >
-            <ModalContent>
-              {(onClose) => (
-                <>
-                  <ModalHeader className="flex flex-col gap-1">
-                    Character Actions
-                  </ModalHeader>
-                  <ModalBody className="max-h-[80vh] overflow-auto ">
-                    {selectedAction != "Coup" && (
-                      <RadioGroup
-                        label="Choose an action"
-                        value={selectedAction}
-                        onChange={(e) => setSelectedAction(e.target.value)}
-                      >
-                        <StyledRadioButton
-                          description="Take 3 coins from the Treasury."
-                          value="tax"
-                        >
-                          Tax 🏛️ {HaveActionText("Tax")}
-                        </StyledRadioButton>
-                        <StyledRadioButton
-                          description="Pay 3 coins to the Treasury and launch an assassination against another player. If successful, that player immediately loses an influence. (Can be blocked by the Contessa)"
-                          value="assassinate"
-                        >
-                          Assassinate 🔪 {HaveActionText("Assassinate")}
-                        </StyledRadioButton>
-                        <StyledRadioButton
-                          description="Take 2 coins from another player. If they only have one coin, take only one. (Can be blocked by the Ambassador or the Captain)"
-                          value="steal"
-                        >
-                          Steal 💰 {HaveActionText("Steal")}
-                        </StyledRadioButton>
-                        <StyledRadioButton
-                          description="Exchange cards with the Court. First take 2 random cards from the Court deck. Choose which, if any, to exchange with your face-down cards. Then return two cards to the Court deck."
-                          value="exchange"
-                        >
-                          Exchange 🔁 {HaveActionText("Exchange")}
-                        </StyledRadioButton>
-                      </RadioGroup>
-                    )}
+      <div className="flex items-center justify-between text-sm text-default-500">
+        <span className="flex items-center gap-1">
+          Deck: {state.deckCount}
+          <Image alt="deck" height={24} radius="none" src={cardsImg.Backcard} />
+        </span>
+        <Button
+          color="danger"
+          size="sm"
+          variant="light"
+          onPress={() => {
+            if (window.confirm("Leave the game? You will forfeit.")) {
+              send({ type: "leave" });
+            }
+          }}
+        >
+          Leave game
+        </Button>
+      </div>
 
-                    {(selectedAction == "assassinate" ||
-                      selectedAction == "steal" ||
-                      selectedAction == "tax" ||
-                      selectedAction == "Coup") && (
-                      <RadioGroup
-                        label={
-                          "Which player you want to " + selectedAction + "?"
-                        }
-                        value={selectedTargetId}
-                        onChange={(e) => {
-                          setSelectedTargetId(e.target.value);
-                        }}
-                      >
-                        {players.map((p) => {
-                          return p.id != player.id ? (
-                            <StyledRadioButton
-                              key={p.id}
-                              description={`Have ${p.cards.length} cards and ${p.coins} coins`}
-                              value={p.id}
-                            >
-                              {p.name}
-                            </StyledRadioButton>
-                          ) : null;
-                        })}
-                      </RadioGroup>
-                    )}
+      <GameLog log={state.log} />
 
-                    {selectedAction == "exchange" && <>Exchange</>}
-                  </ModalBody>
-                  <ModalFooter>
-                    <Button color="default" variant="light" onPress={onClose}>
-                      Close
-                    </Button>
-                    <Button
-                      color="primary"
-                      onPress={() => sendSelectedAction()}
-                    >
-                      Action
-                    </Button>
-                  </ModalFooter>
-                </>
-              )}
-            </ModalContent>
-          </Modal>
-          {/* Cunteractions --------------------> */}
-          <CounterActionModal
-            activeDiscussion={activeDiscussion}
-            isOpen={isOpenCounterActionMenu}
-            player={player}
-            selectedCardNumber={selectedCardNumber}
-            sendSelectedAction={sendSelectedAction}
-            setSelectedCardNumber={setSelectedCardNumber}
-            onCloseCounterActionMenu={onCloseCounterActionMenu}
-          />
-        </div>
-      )}
+      <CardPicker
+        cards={me.cards.map((c) => (c.revealed ? null : c.role))}
+        confirmLabel="Lose this card"
+        count={1}
+        description="This card will be revealed and you lose its influence."
+        isOpen={options.loseInfluence}
+        testIdPrefix="lose"
+        title={`You ${state.loss?.reason ?? "lose"}: choose a card to lose`}
+        onConfirm={([index]) => send({ type: "loseCard", index })}
+      />
+      <CardPicker
+        cards={options.exchange?.cards ?? []}
+        confirmLabel="Keep these"
+        count={options.exchange?.keep ?? 0}
+        description="The rest go back to the deck."
+        isOpen={!!options.exchange}
+        testIdPrefix="exchange"
+        title={`Exchange: keep ${options.exchange?.keep ?? 0} card(s)`}
+        onConfirm={(keep) => send({ type: "exchange", keep })}
+      />
     </div>
   );
 };
+
+function GameLog({ log }: { log: GameView["log"] }) {
+  const logRef = useRef<HTMLUListElement>(null);
+
+  // Always show the latest events.
+  useEffect(() => {
+    logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
+  }, [log.length ? log[log.length - 1].id : 0]);
+
+  return (
+    <Card>
+      <CardBody>
+        <p className="font-semibold mb-1">Game log</p>
+        <ul
+          ref={logRef}
+          className="flex flex-col gap-0.5 max-h-48 overflow-auto text-sm text-default-600"
+          data-testid="game-log"
+        >
+          {log.map((entry) => (
+            <li key={entry.id}>{entry.text}</li>
+          ))}
+        </ul>
+      </CardBody>
+    </Card>
+  );
+}
 
 export default RunningGame;

@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { Alert } from "@heroui/react";
+import { Alert, Chip } from "@heroui/react";
 
 import { Player } from "@/types/game";
 
@@ -13,12 +13,30 @@ export default function PlayersComponent({
 }) {
   return (
     <div className="flex flex-col gap-3">
-      {players.map((player, index) => (
+      {players.map((player) => (
         <Alert
-          key={index}
+          key={player.id}
           className="text-left"
           color={player.id == playerId ? "primary" : "default"}
-          endContent={<></>}
+          endContent={
+            <div className="flex gap-1">
+              {player.isHost && (
+                <Chip color="warning" size="sm" variant="flat">
+                  Host
+                </Chip>
+              )}
+              {player.id == playerId && (
+                <Chip color="primary" size="sm" variant="flat">
+                  You
+                </Chip>
+              )}
+              {!player.connected && (
+                <Chip size="sm" variant="flat">
+                  Offline
+                </Chip>
+              )}
+            </div>
+          }
           icon={<UserIcon />}
           title={player.name}
           variant="flat"

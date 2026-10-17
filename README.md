@@ -9,15 +9,16 @@ This repository contains the frontend for the **Coup Game**, a multiplayer game 
    - Everyone in the same room will play together.  
 
 2. **Game Start**  
-   - Once all players are in the room, the frontend sends a signal to the backend to start the game.  
+   - Once 2–10 players are in the room, the host starts the game.  
 
 3. **Player Actions**  
-   - Players perform actions in the frontend.  
-   - These actions are sent to the backend for processing.  
+   - Players only send intents (`action`, `challenge`, `block`, `pass`, `loseCard`, `exchange`).  
+   - The [backend](https://github.com/freddysae0/coup-backend) is authoritative: it validates every move and applies the rules.  
 
 4. **Game State Update**  
-   - The backend processes the actions and updates the game state.  
-   - The updated game state is then sent back to the frontend so all players can see the changes in real time.  
+   - After every change the backend sends each player their own view of the table (other players' cards stay hidden).  
+   - The view includes `options`: exactly what that player can do right now, which is what the UI renders.  
+   - Refreshing the page or losing the connection is safe: the client reconnects and gets its seat back.  
 
 ## 🛠️ Technologies Used  
 
@@ -32,17 +33,17 @@ This repository contains the frontend for the **Coup Game**, a multiplayer game 
  ├── 📂 game/                 # Game-related feature module
  │    ├── 📂 [...slug]/       # Dynamic route folder
  │    │    ├── 📂 components/ # UI components specific to the game
- │    │    │    ├── AllPlayers    
- │    │    │    ├── RunningGame   
+ │    │    │    ├── AllPlayers    # Player list (lobby)
+ │    │    │    ├── Lobby         # Invite link, nickname, start
+ │    │    │    ├── RunningGame   # Board, actions, responses, card pickers, log
  │    │    ├── page.tsx       # Main page file for the game module
- │    │    ├── page.utils.ts  # Utility functions for the game page
  │    │    ├── layout.tsx     # Layout for the game page
  │    │    ├── rules          # Container for game rules
  │    ├── providers.tsx       # Context providers or global state management
  │
  ├── 📂 config/               # Project configuration files
  ├── 📂 public/               # Static assets
- ├── 📂 shared/               # Reusable code     (The NAVBAR and ICONS are server side components)
+ ├── 📂 shared/               # Reusable code (useCoupSocket.ts: WebSocket + reconnection)
  ├── 📂 styles/               # Global styles
  ├── 📂 types/                # TypeScript type definitions
  │    ├── game.ts             # Game-related types
@@ -67,7 +68,6 @@ This repository contains the frontend for the **Coup Game**, a multiplayer game 
 - **types/** → TypeScript definitions for strong typing.  
 - **Root files** like `.env`, `package.json`, and `next.config.js` for project setup and configuration.  
 
-Let me know if you need modifications or additional details. 🚀
 
 ## 🚀 Installation and Setup  
 
@@ -84,11 +84,21 @@ cd coup
 npm install
 ```
 
-### Start the development server  
+### Start the backend and the development server  
 
 ```bash
-npm run dev
+# in another terminal: https://github.com/freddysae0/coup-backend
+git clone https://github.com/freddysae0/coup-backend.git
+cd coup-backend && npm install && npm run dev   # ws://localhost:8000
+
+# here
+npm run dev   # http://localhost:3000
 ```
+
+The WebSocket URL comes from `NEXT_PUBLIC_WS_URL` (see `.env.production`).
+Without it the client connects to `ws://<current host>:8000`, so friends on
+your LAN can join using your IP. Each browser tab is a different player, so
+you can test a whole game alone with several tabs.
 
 # Lint and test   
 

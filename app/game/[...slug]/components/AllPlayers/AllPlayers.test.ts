@@ -14,7 +14,8 @@ const mock_players: Player[] = [
     id: playerid,
     isHost: false,
     name: "Player1",
-    isBeingChallenged: false,
+    connected: true,
+    alive: true,
   },
   {
     cards: [],
@@ -22,14 +23,18 @@ const mock_players: Player[] = [
     id: v4(),
     isHost: true,
     name: "Player2",
-    isBeingChallenged: false,
+    connected: false,
+    alive: true,
   },
 ];
 
 describe("All players components", () => {
-  it("Renders", () => {
+  it("Renders names, host and offline markers", () => {
     render(AllPlayers({ players: mock_players, playerId: playerid }));
     expect(screen.getByText("Player1")).toBeInTheDocument();
     expect(screen.getByText("Player2")).toBeInTheDocument();
+    expect(screen.getByText("Host")).toBeInTheDocument();
+    expect(screen.getByText("You")).toBeInTheDocument();
+    expect(screen.getByText("Offline")).toBeInTheDocument();
   });
 });

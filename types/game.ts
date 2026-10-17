@@ -1,69 +1,102 @@
-export type Action =
+// Mirrors the server view (coup-backend/src/game/view.ts).
+
+export type Role = "Duke" | "Assassin" | "Captain" | "Ambassador" | "Contessa";
+
+export type ActionType =
   | "Income" // Take 1 coin from the Treasury
   | "Foreign aid" // Take 2 coins from the Treasury (Can be blocked by Duke)
   | "Coup" // Pay 7 coins and launch a Coup
   | "Tax" // Duke Action: Take 3 coins from the Treasury
   | "Assassinate" // Assassin Action: Pay 3 coins to assassinate another player
   | "Steal" // Captain Action: Take 2 coins from another player (or 1 if they have only 1)
-  | "Exchange" // Ambassador Action: Exchange cards with the Court
-  | "Lose card" // Ambassador Action: Exchange cards with the Court
-  | "None"; // None Action (only Contessa have it)
+  | "Exchange"; // Ambassador Action: Exchange cards with the Court
 
-export type CounterAction =
-  | "Foreign Aid" // Duke blocks Foreign Aid
-  | "Assassinate" // Contessa blocks Assassinate
-  | "Steal"; // Ambassador or Captain blocks Steal
+export type PhaseKind =
+  | "lobby"
+  | "action"
+  | "challengeAction"
+  | "blockAction"
+  | "challengeBlock"
+  | "loseInfluence"
+  | "exchange"
+  | "gameOver";
 
-export type CardStructure = {
-  id: number;
-  name: "Duke" | "Assassin" | "Captain" | "Ambassador" | "Contessa"; // Fixed names for characters
-  action: Action; // Action associated with the card
-  counteraction: CounterAction | null; // Counteraction capability, null if none
-};
-export type Card = Partial<CardStructure>;
+export type CardView = { role: Role | null; revealed: boolean };
+
 export type Player = {
   id: string;
   name: string;
-  cards: Card[];
   coins: number;
   isHost: boolean;
-  isBeingChallenged: boolean; // Track if the action is being challenged
+  connected: boolean;
+  alive: boolean;
+  cards: CardView[];
 };
 
-export type State = {
-  deck: Card[];
-  throws: Card[];
+export type ActionOption = {
+  type: ActionType;
+  enabled: boolean;
+  reason?: string;
+  targets: string[];
+};
+
+export type Options = {
+  actions: ActionOption[];
+  canChallenge: boolean;
+  canPass: boolean;
+  blockRoles: Role[];
+  loseInfluence: boolean;
+  exchange: { cards: Role[]; keep: number } | null;
+  canStart: boolean;
+  canRestart: boolean;
+};
+
+export type GameView = {
+  room: string;
+  you: string;
+  version: number;
+  windowId: number;
+  phase: PhaseKind;
   players: Player[];
-  isGameStarted: boolean;
-  turn: Player; // Player whose turn it is
+  deckCount: number;
+  turnId: string | null;
+  pending: {
+    type: ActionType;
+    actorId: string;
+    targetId?: string;
+    claim?: Role;
+    block?: { blockerId: string; role: Role };
+  } | null;
+  loss: { playerId: string; reason: string } | null;
+  waitingOn: string[];
+  winnerId: string | null;
+  /** Local-clock timestamp when the response window auto-passes. */
+  deadline: number | null;
+  responseTimeoutMs?: number;
+  log: { id: number; text: string }[];
+  options: Options;
 };
 
-export type ChallengeOutcome =
-  | "Wins challenge"
-  | "Loses challenge"
-  | "Lose a card"
-  | "ResolveCoup"
-  | "DenyForeign aid"
-  | "ChallengeDenyForeign aid";
+export type ClientMessage =
+  | { type: "join"; room: string; playerId: string; name?: string }
+  | { type: "rename"; name: string }
+  | { type: "start" }
+  | { type: "action"; action: ActionType; targetId?: string }
+  | { type: "challenge"; windowId?: number }
+  | { type: "pass"; windowId?: number }
+  | { type: "block"; role: Role; windowId?: number }
+  | { type: "loseCard"; index: number }
+  | { type: "exchange"; keep: number[] }
+  | { type: "leave" }
+  | { type: "restart" };
 
-export type Discussion = {
-  id: string;
-  player: Player;
-  action: Action;
-  target?: Player;
-  playersVotingToSkip: Player[];
-  step: number;
-  playerWhomBeBlessed: Player;
-  playerWhomBeCoursed: Player;
-};
-
-export type DiscussionMeta = {
-  [key: string]: Array<{
-    title: (playerName: string) => string;
-    notification?: (discussion: Discussion | null) => string;
-
-    description: string;
-    okButton: string;
-    cancelButton?: string;
-  }>;
-};
+export type ServerMessage =
+  | {
+      type: "state";
+      state: GameView;
+      serverTime: number;
+      responseTimeoutMs: number;
+    }
+  | { type: "error"; message: string }
+  | { type: "left" }
+  | { type: "pong" };
