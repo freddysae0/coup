@@ -49,7 +49,6 @@ This repository contains the frontend for the **Coup Game**, a multiplayer game 
  │    ├── game.ts             # Game-related types
  │    ├── index.ts            # Type exports
  │
- ├── 📄 .env.production       # Production environment variables
  ├── 📄 .eslintrc.json        # ESLint configuration
  ├── 📄 next.config.js        # Next.js configuration
  ├── 📄 package.json          # Project dependencies
@@ -95,9 +94,10 @@ cd coup-backend && npm install && npm run dev   # ws://localhost:8000
 npm run dev   # http://localhost:3000
 ```
 
-The WebSocket URL comes from `NEXT_PUBLIC_WS_URL` (see `.env.production`).
-Without it the client connects to `ws://<current host>:8000`, so friends on
-your LAN can join using your IP. Each browser tab is a different player, so
+The WebSocket URL is chosen at runtime: on HTTPS the client uses
+`wss://<host>/ws` (a reverse proxy forwards it to the backend), on plain HTTP
+it uses `ws://<host>:8000` (localhost, your LAN IP or the server IP).
+Set `NEXT_PUBLIC_WS_URL` at build time to override it. Each browser tab is a different player, so
 you can test a whole game alone with several tabs.
 
 # Lint and test   
