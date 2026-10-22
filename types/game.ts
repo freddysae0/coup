@@ -37,6 +37,8 @@ export type ActionOption = {
   type: ActionType;
   enabled: boolean;
   reason?: string;
+  reasonCode?: "mustCoup" | "needsCoins";
+  cost?: number;
   targets: string[];
 };
 
@@ -73,7 +75,11 @@ export type GameView = {
   /** Local-clock timestamp when the response window auto-passes. */
   deadline: number | null;
   responseTimeoutMs?: number;
-  log: { id: number; text: string }[];
+  log: {
+    id: number;
+    text: string;
+    event?: { k: string } & Record<string, string | number>;
+  }[];
   options: Options;
 };
 
@@ -97,6 +103,11 @@ export type ServerMessage =
       serverTime: number;
       responseTimeoutMs: number;
     }
-  | { type: "error"; message: string }
+  | {
+      type: "error";
+      message: string;
+      code?: string;
+      params?: Record<string, string | number>;
+    }
   | { type: "left" }
   | { type: "pong" };

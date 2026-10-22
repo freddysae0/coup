@@ -1,3 +1,63 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    font-feature-settings: "kern", "liga", "tnum";
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--heroui-focus));
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* The fine diagonal hatching printed behind every character card. */
+  .hatching {
+    background-image: repeating-linear-gradient(
+      135deg,
+      currentColor 0 1px,
+      transparent 1px 7px
+    );
+  }
+
+  .display {
+    font-family: var(--font-display), var(--font-sans), sans-serif;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    line-height: 0.92;
+  }
+
+  .prose-rules p,
+  .prose-rules li {
+    line-height: 1.65;
+    max-width: 68ch;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@layer utilities {
+  /* Still scrolls by touch, wheel, keyboard and drag; just no visible bar. */
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}

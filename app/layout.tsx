@@ -1,69 +1,56 @@
 import "@/styles/globals.css";
 import { Metadata, Viewport } from "next";
-import { Link } from "@heroui/link";
 import clsx from "clsx";
-import { ErrorBoundary } from "next/dist/client/components/error-boundary";
-
-import Error from "../shared/components/Error/Error";
 
 import { Providers } from "./providers";
 
-import { siteConfig } from "@/config/site";
-import { fontSans } from "@/config/fonts";
-import Navbar from "@/shared/components/Navbar";
+import { fontDisplay, fontSans } from "@/config/fonts";
+import { getDictionary, getLocale } from "@/i18n/server";
 
-export const metadata: Metadata = {
-  title: {
-    default: siteConfig.name,
-    template: `%s - ${siteConfig.name}`,
-  },
-  description: siteConfig.description,
-  icons: {
-    icon: "/favicon.ico",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getDictionary();
+
+  return {
+    title: { default: t.meta.title, template: "%s — Coup" },
+    description: t.meta.description,
+    openGraph: {
+      title: t.meta.title,
+      description: t.meta.description,
+      type: "website",
+    },
+    twitter: { card: "summary_large_image" },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "white" },
-    { media: "(prefers-color-scheme: dark)", color: "black" },
+    { media: "(prefers-color-scheme: light)", color: "#EEF2EF" },
+    { media: "(prefers-color-scheme: dark)", color: "#16252C" },
   ],
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const locale = await getLocale();
+
   return (
-    <html suppressHydrationWarning lang="en">
+    <html suppressHydrationWarning lang={locale}>
       <head />
       <body
         className={clsx(
-          "min-h-screen bg-background font-sans antialiased",
+          "min-h-dvh bg-background text-foreground font-sans antialiased",
           fontSans.variable,
+          fontDisplay.variable,
         )}
       >
-        <Providers themeProps={{ attribute: "class", defaultTheme: "dark" }}>
-          <div className="relative  flex flex-col h-screen">
-            <Navbar />
-            <ErrorBoundary errorComponent={Error}>
-              <main className="container mx-auto max-w-7xl pt-16 px-14 flex-grow">
-                {children}
-              </main>
-            </ErrorBoundary>
-            <footer className="w-full flex items-center justify-center py-3 mt-auto">
-              <Link
-                isExternal
-                className="flex items-center gap-1 text-current"
-                href="https://www.linkedin.com/in/freddy-js/"
-                title="heroui.com homepage"
-              >
-                <span className="text-default-600">Powered by</span>
-                <p className="text-primary">Freddy</p>
-              </Link>
-            </footer>
-          </div>
+        <Providers
+          locale={locale}
+          themeProps={{ attribute: "class", defaultTheme: "dark" }}
+        >
+          {children}
         </Providers>
       </body>
     </html>

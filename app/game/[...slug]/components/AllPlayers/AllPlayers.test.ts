@@ -30,7 +30,13 @@ const mock_players: Player[] = [
 
 describe("All players components", () => {
   it("Renders names, host and offline markers", () => {
-    render(AllPlayers({ players: mock_players, playerId: playerid }));
+    render(
+      AllPlayers({
+        players: mock_players,
+        playerId: playerid,
+        labels: { host: "Host", you: "You", offline: "Offline" },
+      }),
+    );
     expect(screen.getByText("Player1")).toBeInTheDocument();
     expect(screen.getByText("Player2")).toBeInTheDocument();
     expect(screen.getByText("Host")).toBeInTheDocument();

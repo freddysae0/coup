@@ -1,11 +1,14 @@
-import { Fira_Code as FontMono, Inter as FontSans } from "next/font/google";
+import { Big_Shoulders_Display, Public_Sans } from "next/font/google";
 
-export const fontSans = FontSans({
+// Condensed civic display face for headlines; Public Sans (the US government
+// typeface) for everything you read. Coup is a game about seizing government.
+export const fontDisplay = Big_Shoulders_Display({
   subsets: ["latin"],
-  variable: "--font-sans",
+  weight: ["600", "800", "900"],
+  variable: "--font-display",
 });
 
-export const fontMono = FontMono({
+export const fontSans = Public_Sans({
   subsets: ["latin"],
-  variable: "--font-mono",
+  variable: "--font-sans",
 });

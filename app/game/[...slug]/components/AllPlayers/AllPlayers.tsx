@@ -1,78 +1,74 @@
-"use client";
 import React from "react";
-import { Alert, Chip } from "@heroui/react";
+import clsx from "clsx";
 
 import { Player } from "@/types/game";
+
+type Labels = { host: string; you: string; offline: string };
+
+const AVATAR_TONES = [
+  "bg-court/20 text-court",
+  "bg-mint/25 text-mint",
+  "bg-magenta/20 text-magenta",
+  "bg-ducat/20 text-ducat",
+];
 
 export default function PlayersComponent({
   players,
   playerId,
+  labels,
 }: {
   players: Player[];
   playerId: string;
+  labels: Labels;
 }) {
   return (
-    <div className="flex flex-col gap-3">
-      {players.map((player) => (
-        <Alert
+    <ul className="flex flex-col gap-2">
+      {players.map((player, i) => (
+        <li
           key={player.id}
-          className="text-left"
-          color={player.id == playerId ? "primary" : "default"}
-          endContent={
-            <div className="flex gap-1">
-              {player.isHost && (
-                <Chip color="warning" size="sm" variant="flat">
-                  Host
-                </Chip>
-              )}
-              {player.id == playerId && (
-                <Chip color="primary" size="sm" variant="flat">
-                  You
-                </Chip>
-              )}
-              {!player.connected && (
-                <Chip size="sm" variant="flat">
-                  Offline
-                </Chip>
-              )}
-            </div>
-          }
-          icon={<UserIcon />}
-          title={player.name}
-          variant="flat"
-        />
+          className={clsx(
+            "flex items-center gap-3 rounded-lg border px-3 py-2.5",
+            player.id === playerId
+              ? "border-primary/60 bg-primary/10"
+              : "border-divider bg-content1",
+          )}
+        >
+          <span
+            aria-hidden="true"
+            className={clsx(
+              "display flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-lg",
+              AVATAR_TONES[i % AVATAR_TONES.length],
+            )}
+          >
+            {player.name.slice(0, 1).toUpperCase()}
+          </span>
+          <span
+            className={clsx(
+              "truncate font-semibold",
+              !player.connected && "opacity-60",
+            )}
+          >
+            {player.name}
+          </span>
+          <span className="ml-auto flex shrink-0 gap-1 text-xs font-semibold">
+            {player.isHost && (
+              <span className="rounded-full bg-warning/20 px-2 py-0.5 text-warning">
+                {labels.host}
+              </span>
+            )}
+            {player.id === playerId && (
+              <span className="rounded-full bg-primary/20 px-2 py-0.5 text-primary">
+                {labels.you}
+              </span>
+            )}
+            {!player.connected && (
+              <span className="rounded-full bg-default-200 px-2 py-0.5">
+                {labels.offline}
+              </span>
+            )}
+          </span>
+        </li>
       ))}
-    </div>
+    </ul>
   );
 }
-
-const UserIcon = ({ fill = "currentColor", ...props }) => {
-  return (
-    <svg
-      data-name="Iconly/Curved/Profile"
-      height={24}
-      viewBox="0 0 24 24"
-      width={24}
-      xmlns="http://www.w3.org/2000/svg"
-      {...props}
-    >
-      <g
-        fill="none"
-        stroke={fill}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeMiterlimit={10}
-        strokeWidth={1.5}
-      >
-        <path
-          d="M11.845 21.662C8.153 21.662 5 21.088 5 18.787s3.133-4.425 6.845-4.425c3.692 0 6.845 2.1 6.845 4.4s-3.134 2.9-6.845 2.9z"
-          data-name="Stroke 1"
-        />
-        <path
-          d="M11.837 11.174a4.372 4.372 0 10-.031 0z"
-          data-name="Stroke 3"
-        />
-      </g>
-    </svg>
-  );
-};
