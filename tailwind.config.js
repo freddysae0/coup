@@ -35,12 +35,17 @@ module.exports = {
         ink: palette.ink,
       },
       keyframes: {
+        "tooltip-in": {
+          from: { opacity: "0", transform: "translateY(2px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
         "pulse-ring": {
           "0%, 100%": { boxShadow: "0 0 0 0 rgba(69,169,221,0.55)" },
           "50%": { boxShadow: "0 0 0 6px rgba(69,169,221,0)" },
         },
       },
       animation: {
+        "tooltip-in": "tooltip-in 120ms ease-out",
         "pulse-ring": "pulse-ring 1.8s ease-in-out infinite",
       },
     },
