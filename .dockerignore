@@ -1,0 +1,11 @@
+.git
+.github
+.next
+.vscode
+node_modules
+coverage
+*.tsbuildinfo
+.env
+.env*.local
+Dockerfile
+docker-compose.yml

@@ -1,0 +1,23 @@
+# Frontend in its own container. Usage: cp .env.example .env && docker compose up -d --build
+name: coup-front
+
+services:
+  web:
+    build:
+      context: .
+      args:
+        # Read from .env when building: the browser connects straight to it.
+        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:?set NEXT_PUBLIC_WS_URL in .env}
+    image: coup-front:local
+    # Built on the server, never pulled from a registry.
+    pull_policy: build
+    restart: unless-stopped
+    ports:
+      # Only reachable from the host: Nginx terminates TLS and proxies here.
+      - '127.0.0.1:3000:3000'
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:3000/']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
