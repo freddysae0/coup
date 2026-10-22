@@ -248,8 +248,12 @@ function ActionButton({
 
   const type = option.type as ActionType;
 
+  // HeroUI's framer-motion entrance resets for one frame as it finishes, which
+  // makes the tooltip blink: it is turned off and the tooltip fades in with CSS.
   return (
     <Tooltip
+      disableAnimation
+      classNames={{ base: "animate-tooltip-in" }}
       closeDelay={0}
       content={<ActionTooltip action={type} />}
       delay={250}
