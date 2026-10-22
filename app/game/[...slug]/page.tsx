@@ -14,6 +14,8 @@ import { useI18n } from "@/i18n";
 
 // Being refused at the door is final: show a page instead of a toast.
 const FATAL = new Set(["alreadyStarted", "roomFull", "invalidRoom"]);
+// Servers that predate error codes only send the English message.
+const FATAL_MESSAGE = /already started|room is full|Invalid room/;
 
 export default function Game() {
   const { t } = useI18n();
@@ -25,7 +27,11 @@ export default function Game() {
   const onError = (err: SocketError) => {
     const text = (err.code && t.game.errors[err.code]) || err.message;
 
-    if (err.code && FATAL.has(err.code)) setFatal(text);
+    const isFatal = err.code
+      ? FATAL.has(err.code)
+      : FATAL_MESSAGE.test(err.message);
+
+    if (isFatal) setFatal(text);
     else addToast({ title: text, color: "danger", timeout: 3500 });
   };
   const { state, status, send } = useCoupSocket(room, onError);

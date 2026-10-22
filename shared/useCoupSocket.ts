@@ -9,12 +9,11 @@ export type ConnectionStatus = "connecting" | "open" | "reconnecting" | "left";
 const PLAYER_ID_KEY = "coup-player-id";
 const PLAYER_NAME_KEY = "coup-player-name";
 const SEATS_KEY = "coup-seats";
-const LOCK_PREFIX = "coup-seat-lock:";
-const LOCK_BEAT_MS = 4_000;
-const LOCK_STALE_MS = 12_000;
+const SEAT_LOCK_PREFIX = "coup-seat:";
 const MAX_REMEMBERED_ROOMS = 30;
 
 type Seats = Record<string, { ids: string[]; at: number }>;
+type Seat = { id: string; release: () => void };
 
 function readSeats(): Seats {
   try {
@@ -24,7 +23,14 @@ function readSeats(): Seats {
   }
 }
 
-function writeSeats(seats: Seats) {
+function rememberSeat(room: string, id: string) {
+  const seats = readSeats();
+  const known = seats[room]?.ids ?? [];
+
+  seats[room] = {
+    ids: known.includes(id) ? known : [...known, id],
+    at: Date.now(),
+  };
   const recent = Object.entries(seats)
     .sort(([, a], [, b]) => b.at - a.at)
     .slice(0, MAX_REMEMBERED_ROOMS);
@@ -32,54 +38,66 @@ function writeSeats(seats: Seats) {
   localStorage.setItem(SEATS_KEY, JSON.stringify(Object.fromEntries(recent)));
 }
 
-/** Another open tab of this browser is sitting in that seat right now. */
-function isSeatHeld(id: string) {
-  const beat = Number(localStorage.getItem(LOCK_PREFIX + id));
+/**
+ * Takes the seat's Web Lock if no other tab of this browser holds it, and
+ * keeps it until `release` or until the tab closes. Unlike a heartbeat, a lock
+ * survives a background tab whose timers are throttled or frozen.
+ */
+function tryHoldSeat(id: string): Promise<(() => void) | null> {
+  return new Promise((resolve) => {
+    navigator.locks
+      .request(SEAT_LOCK_PREFIX + id, { ifAvailable: true }, (lock) => {
+        if (!lock) return resolve(null);
 
-  return Date.now() - beat < LOCK_STALE_MS;
+        return new Promise<void>((release) => resolve(() => release()));
+      })
+      .catch(() => resolve(null));
+  });
 }
 
 /**
- * Identity of this tab in `room`. The tab keeps it in sessionStorage, and the
- * browser remembers every seat it took per room in localStorage, so closing
- * the tab and opening the link again gets the same seat back. Seats held by
- * another open tab are skipped: two tabs are still two different players.
+ * Identity of this tab in `room`. The browser remembers every seat it took per
+ * room, so closing the tab and opening the link again gets the same seat back,
+ * while two tabs open at once are still two different players.
  */
-export function getPlayerId(room: string) {
+export async function claimSeat(room: string): Promise<Seat> {
   const tabKey = `${PLAYER_ID_KEY}:${room}`;
-  let id = sessionStorage.getItem(tabKey);
+  // This tab's own seat first (a refresh), then the per-tab id older versions
+  // used for every room, then seats this browser left behind in the room.
+  const own = [
+    sessionStorage.getItem(tabKey),
+    sessionStorage.getItem(PLAYER_ID_KEY),
+  ];
+  let seat: Seat | null = null;
 
-  if (!id) {
-    const seats = readSeats();
-    const known = seats[room]?.ids ?? [];
+  if (typeof navigator !== "undefined" && "locks" in navigator) {
+    const candidates = [...own, ...(readSeats()[room]?.ids ?? [])].filter(
+      (c, i, all): c is string => !!c && all.indexOf(c) === i,
+    );
 
-    id = known.find((seat) => !isSeatHeld(seat)) ?? v4();
-    seats[room] = {
-      ids: known.includes(id) ? known : [...known, id],
-      at: Date.now(),
-    };
-    writeSeats(seats);
-    sessionStorage.setItem(tabKey, id);
+    for (const id of candidates) {
+      const release = await tryHoldSeat(id);
+
+      if (release) {
+        seat = { id, release };
+        break;
+      }
+    }
+    if (!seat) {
+      const id = v4();
+
+      seat = { id, release: (await tryHoldSeat(id)) ?? (() => {}) };
+    }
+  } else {
+    // Without Web Locks a closed tab cannot be told from an open one, so
+    // only this tab's own id is reused.
+    seat = { id: own.find((c) => !!c) ?? v4(), release: () => {} };
   }
 
-  return id;
-}
+  rememberSeat(room, seat.id);
+  sessionStorage.setItem(tabKey, seat.id);
 
-/** Marks the seat as taken by this tab until the tab goes away. */
-function holdSeat(id: string) {
-  const beat = () => localStorage.setItem(LOCK_PREFIX + id, String(Date.now()));
-  const release = () => localStorage.removeItem(LOCK_PREFIX + id);
-
-  beat();
-  const timer = setInterval(beat, LOCK_BEAT_MS);
-
-  window.addEventListener("pagehide", release);
-
-  return () => {
-    clearInterval(timer);
-    window.removeEventListener("pagehide", release);
-    release();
-  };
+  return seat;
 }
 
 export function getPlayerName() {
@@ -145,10 +163,9 @@ export function useCoupSocket(
     let stopped = false;
     let attempt = 0;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
-    const playerId = getPlayerId(room);
-    const releaseSeat = holdSeat(playerId);
+    let seat: Seat | null = null;
 
-    const connect = () => {
+    const connect = (playerId: string) => {
       const ws = new WebSocket(getWsUrl());
 
       wsRef.current = ws;
@@ -194,17 +211,22 @@ export function useCoupSocket(
         setStatus("reconnecting");
         const delay = Math.min(10_000, 500 * 2 ** attempt++);
 
-        retryTimer = setTimeout(connect, delay);
+        retryTimer = setTimeout(() => connect(playerId), delay);
       };
     };
 
     setStatus("connecting");
-    connect();
+    claimSeat(room).then((claimed) => {
+      // The page may have moved on while the seat was being claimed.
+      if (stopped) return claimed.release();
+      seat = claimed;
+      connect(claimed.id);
+    });
 
     return () => {
       stopped = true;
       clearTimeout(retryTimer);
-      releaseSeat();
+      seat?.release();
       wsRef.current?.close();
       wsRef.current = null;
     };
