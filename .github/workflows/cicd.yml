@@ -1,18 +1,21 @@
-name: Create and publish a Docker image
+name: Test and deploy
 
 on:
   push:
     branches: ["master"]
+  pull_request:
+    branches: ["master"]
 
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+# Runs on master queue up instead of overlapping, so an older commit can never
+# be deployed after a newer one. A newer push replaces a run still waiting.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  lint-and-test:
-    name: Lint and Test (CI)
+  test:
+    name: Lint, Test and Build (CI)
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -20,67 +23,41 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
+          cache: npm
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      - name: Run ESLint
+      - name: Lint
         run: npm run lint
 
-      - name: Run tests
+      - name: Test
         run: npm test
-  build-and-push-image:
-    name: Deploy to VPS (CD)
-    needs: lint-and-test
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_WS_URL: wss://coup-back.freddysaez.es
+
+  deploy:
+    name: Deploy on Ploi (CD)
+    needs: test
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-      attestations: write
-      id-token: write
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Log in to the Container registry
-        uses: docker/login-action@v2
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v4
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-
-      - name: Build and push Docker image
-        id: push
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          push: true
-          no-cache: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.run_number }}
-          labels: ${{ steps.meta.outputs.labels }}
-
-      - name: Debug tags
-        run: echo ${{ steps.meta.outputs.tags }}
-
-      - name: Run in server
-        uses: appleboy/ssh-action@v0.1.5
-        with:
-          host: ${{ vars.SERVER_IP }}
-          username: ${{ vars.SERVER_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          script: |
-            docker pull ghcr.io/freddysae0/coup:latest
-            docker stop ${{ vars.SERVER_CONTAINER }}
-            docker rm ${{ vars.SERVER_CONTAINER }}
-            docker rmi $(docker images -q | tail -n +5)
-            docker run -p 3001:3000 -d --name ${{ vars.SERVER_CONTAINER }} ghcr.io/freddysae0/coup:latest
+      # Ploi checks out exactly the commit that passed the tests (the SHA
+      # variable, see "Deploy on Ploi" in README.md) and runs
+      # `docker compose up -d --build`. Deploying from here instead of Ploi's
+      # quick deploy means a red build never reaches production.
+      - name: Trigger Ploi deployment
+        run: |
+          if [ -z "$PLOI_DEPLOY_WEBHOOK" ]; then
+            echo "::warning::PLOI_DEPLOY_WEBHOOK is not set, skipping deploy"
+            exit 0
+          fi
+          curl --fail-with-body -sS -o /dev/null -X POST "$PLOI_DEPLOY_WEBHOOK" \
+            -H 'Content-Type: application/json' \
+            -d "{\"variables\": {\"sha\": \"$GITHUB_SHA\"}}"
+        env:
+          PLOI_DEPLOY_WEBHOOK: ${{ secrets.PLOI_DEPLOY_WEBHOOK }}

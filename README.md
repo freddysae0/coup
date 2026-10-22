@@ -107,3 +107,47 @@ npm run lint && npm run test
 
 ```
 
+## Deploy on Ploi
+
+Production runs at <https://coup.freddysaez.es> on a [Ploi](https://ploi.io)
+server with Docker, next to the backend (<https://coup-back.freddysaez.es>).
+Nginx (managed by Ploi) terminates TLS and proxies to the container, which only
+listens on `127.0.0.1:3000`. The image is a Next.js `standalone` build.
+
+One-time setup:
+
+1. Create the site `coup.freddysaez.es` in Ploi, install this repository on the
+   `master` branch and add a Let's Encrypt certificate (the site directory needs
+   a `public/` folder, which this repo already has). Leave **Quick deploy off**.
+2. Create `.env` in the site directory from `.env.example`. It only holds
+   `NEXT_PUBLIC_WS_URL`, which is baked into the bundle at build time.
+3. Deploy script:
+
+   ```bash
+   set -e
+   cd /home/ploi/coup.freddysaez.es
+   git fetch origin master
+   TARGET="${SHA:-origin/master}"
+   git merge-base --is-ancestor "$TARGET" origin/master
+   git checkout --force --detach "$TARGET"
+   docker compose up -d --build --remove-orphans
+   docker image prune -f
+   echo "Deployed $(git rev-parse --short HEAD)"
+   ```
+
+4. Nginx: replace the PHP `location` blocks with a proxy to the container:
+
+   ```nginx
+   location / {
+       proxy_pass http://127.0.0.1:3000;
+       proxy_http_version 1.1;
+       proxy_set_header Host $host;
+       proxy_set_header X-Real-IP $remote_addr;
+       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+       proxy_set_header X-Forwarded-Proto $scheme;
+   }
+   ```
+
+5. Copy the deploy webhook URL from the site's *Repository* tab into the GitHub
+   secret `PLOI_DEPLOY_WEBHOOK`. Every push to `master` then runs lint, tests
+   and a build and, if green, deploys that exact commit.
