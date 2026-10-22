@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
 
-import { describePhase } from "./RunningGame.utils";
+import { describePhase, logText } from "./RunningGame.utils";
 
+import en from "@/i18n/en";
+import es from "@/i18n/es";
 import { GameView } from "@/types/game";
 
 const base: GameView = {
@@ -51,45 +53,53 @@ const base: GameView = {
 };
 
 describe("describePhase", () => {
-  it("explains every phase from the viewer's perspective", () => {
-    expect(describePhase(base)).toBe("Your turn: choose an action.");
-    expect(describePhase({ ...base, turnId: "b" })).toBe(
-      "Beto is choosing an action.",
+  it("explains phases from the viewer's perspective, in both languages", () => {
+    expect(describePhase(base, en)).toBe("Your turn: choose an action.");
+    expect(describePhase({ ...base, turnId: "b" }, es)).toBe(
+      "Beto está eligiendo una acción.",
+    );
+    const steal: GameView = {
+      ...base,
+      phase: "challengeAction",
+      pending: { type: "Steal", actorId: "b", targetId: "a", claim: "Captain" },
+    };
+
+    expect(describePhase(steal, en)).toBe(
+      "Beto wants to steal from you, claiming Captain.",
+    );
+    expect(describePhase(steal, es)).toBe(
+      "Beto quiere robarte y dice ser Capitán.",
     );
     expect(
-      describePhase({
-        ...base,
-        phase: "challengeAction",
-        pending: {
-          type: "Steal",
-          actorId: "b",
-          targetId: "a",
-          claim: "Captain",
+      describePhase(
+        {
+          ...base,
+          phase: "loseInfluence",
+          loss: { playerId: "b", reason: "couped" },
         },
-      }),
+        es,
+      ),
     ).toBe(
-      "Beto declared Steal on You, claiming Captain. Anyone may challenge.",
+      "Beto sufrió un golpe de Estado y está eligiendo qué carta revelar.",
     );
     expect(
-      describePhase({
-        ...base,
-        phase: "challengeBlock",
-        pending: {
-          type: "Foreign aid",
-          actorId: "a",
-          block: { blockerId: "b", role: "Duke" },
-        },
-      }),
-    ).toContain("Beto blocks Foreign aid with Duke");
-    expect(
-      describePhase({
-        ...base,
-        phase: "loseInfluence",
-        loss: { playerId: "a", reason: "was couped" },
-      }),
-    ).toBe("You must choose a card to lose.");
-    expect(describePhase({ ...base, phase: "gameOver", winnerId: "b" })).toBe(
-      "Beto won the game.",
+      describePhase({ ...base, phase: "gameOver", winnerId: "a" }, en),
+    ).toBe(en.game.winTitle);
+  });
+});
+
+describe("logText", () => {
+  it("translates structured events and falls back to the server text", () => {
+    const entry = {
+      id: 1,
+      text: "Ana lost a challenge and loses a Duke",
+      event: { k: "lose", name: "Ana", reason: "lostChallenge", role: "Duke" },
+    };
+
+    expect(logText(entry, en)).toBe("Ana lost a challenge and reveals a Duke");
+    expect(logText(entry, es)).toBe("Ana perdió un desafío y revela Duque");
+    expect(logText({ id: 2, text: "Legacy line" } as never, es)).toBe(
+      "Legacy line",
     );
   });
 });

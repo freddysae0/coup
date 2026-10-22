@@ -1,54 +1,60 @@
-import {
-  Navbar as HeroUINavbar,
-  NavbarContent,
-  NavbarBrand,
-  NavbarItem,
-} from "@heroui/navbar";
-import { Link } from "@heroui/link";
+"use client";
 import NextLink from "next/link";
+import { usePathname } from "next/navigation";
+import clsx from "clsx";
 
-import { siteConfig } from "@/config/site";
+import Logo from "../Logo";
+import LanguageSwitch from "../LanguageSwitch";
+
 import { ThemeSwitch } from "@/shared/theme-switch";
-import { LinkedinIcon, GithubIcon } from "@/shared/icons";
+import { GithubIcon } from "@/shared/icons";
+import { siteConfig } from "@/config/site";
+import { useI18n } from "@/i18n";
+import { useCreateRoom } from "@/shared/useCreateRoom";
 
 export const Navbar = () => {
+  const { t } = useI18n();
+  const pathname = usePathname();
+  const createRoom = useCreateRoom();
+
   return (
-    <HeroUINavbar maxWidth="xl" position="sticky">
-      <NavbarContent className="basis-1/5 sm:basis-full" justify="start">
-        <NavbarBrand as="li" className="gap-3 max-w-fit">
-          <NextLink className="flex justify-start items-center gap-1" href="/">
-            <p className="font-bold text-inherit">COUP</p>
-          </NextLink>
-        </NavbarBrand>
-      </NavbarContent>
-
-      <NavbarContent
-        className="hidden sm:flex basis-1/5 sm:basis-full"
-        justify="end"
-      >
-        <NavbarItem className="hidden sm:flex gap-2">
-          <Link
-            isExternal
-            aria-label="Twitter"
-            href={siteConfig.links.linkedin}
+    <header className="sticky top-0 z-40 border-b border-divider bg-background/80 backdrop-blur-md">
+      <nav className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-5">
+        <NextLink aria-label={t.nav.home} href="/">
+          <Logo />
+        </NextLink>
+        <div className="ml-auto flex items-center gap-1 sm:gap-3">
+          <NextLink
+            aria-current={pathname === "/rules" ? "page" : undefined}
+            className={clsx(
+              "rounded-md px-2 py-1 text-sm font-medium hover:text-primary",
+              pathname === "/rules" && "text-primary",
+            )}
+            href="/rules"
           >
-            <LinkedinIcon className="text-default-500" />
-          </Link>
-
-          <Link isExternal aria-label="Github" href={siteConfig.links.github}>
-            <GithubIcon className="text-default-500" />
-          </Link>
+            {t.nav.rules}
+          </NextLink>
+          <button
+            className="hidden rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground hover:opacity-90 sm:block"
+            type="button"
+            onClick={createRoom}
+          >
+            {t.nav.play}
+          </button>
+          <LanguageSwitch />
           <ThemeSwitch />
-        </NavbarItem>
-      </NavbarContent>
-
-      <NavbarContent className="sm:hidden basis-1 pl-4" justify="end">
-        <Link isExternal aria-label="Github" href={siteConfig.links.github}>
-          <GithubIcon className="text-default-500" />
-        </Link>
-        <ThemeSwitch />
-      </NavbarContent>
-    </HeroUINavbar>
+          <a
+            aria-label={t.nav.source}
+            className="hidden text-foreground/70 hover:text-foreground sm:block"
+            href={siteConfig.links.github}
+            rel="noreferrer"
+            target="_blank"
+          >
+            <GithubIcon size={22} />
+          </a>
+        </div>
+      </nav>
+    </header>
   );
 };
 

@@ -1,76 +1,82 @@
 "use client";
 import { useEffect, useState } from "react";
+import NextLink from "next/link";
 import { useParams } from "next/navigation";
-import { Button } from "@heroui/button";
-import { Link } from "@heroui/link";
 import { Spinner } from "@heroui/react";
 import { addToast } from "@heroui/toast";
 
 import Lobby from "./components/Lobby";
 import RunningGame from "./components/RunningGame";
+import TopBar from "./components/TopBar";
 
-import { useCoupSocket } from "@/shared/useCoupSocket";
-import { title, subtitle } from "@/shared/primitives";
+import { SocketError, useCoupSocket } from "@/shared/useCoupSocket";
+import { useI18n } from "@/i18n";
+
+// Being refused at the door is final: show a page instead of a toast.
+const FATAL = new Set(["alreadyStarted", "roomFull", "invalidRoom"]);
 
 export default function Game() {
+  const { t } = useI18n();
   const params = useParams<{ slug: string[] }>();
   const slug = params?.slug ?? [];
   const room = slug.length ? slug[slug.length - 1] : null;
-  const [fatalError, setFatalError] = useState<string | null>(null);
+  const [fatal, setFatal] = useState<string | null>(null);
 
-  const { state, status, send } = useCoupSocket(room, (message) => {
-    // Being refused at the door (game already started, room full) is final.
-    if (/already started|room is full|Invalid room/.test(message)) {
-      setFatalError(message);
-    } else {
-      addToast({ title: message, color: "danger", timeout: 3500 });
-    }
-  });
+  const onError = (err: SocketError) => {
+    const text = (err.code && t.game.errors[err.code]) || err.message;
+
+    if (err.code && FATAL.has(err.code)) setFatal(text);
+    else addToast({ title: text, color: "danger", timeout: 3500 });
+  };
+  const { state, status, send } = useCoupSocket(room, onError);
 
   useEffect(() => {
-    if (state) setFatalError(null);
+    if (state) setFatal(null);
   }, [state]);
 
-  if (status === "left") {
+  if (status === "left" || (fatal && !state)) {
     return (
-      <div className="flex flex-col gap-3">
-        <h1 className={title()}>You left the game</h1>
-        <Link href="/">Back to home</Link>
-      </div>
-    );
-  }
-
-  if (fatalError && !state) {
-    return (
-      <div className="flex flex-col gap-3">
-        <h1 className={title({ size: "sm" })}>Can&apos;t join this room</h1>
-        <p className={subtitle()}>{fatalError}</p>
-        <Button as={Link} color="primary" href="/" variant="flat">
-          Start a new game
-        </Button>
-      </div>
+      <>
+        <TopBar state={null} />
+        <div className="mx-auto flex max-w-lg flex-1 flex-col items-start justify-center gap-4 px-6">
+          <h1 className="display text-5xl">
+            {status === "left" ? t.game.leftTitle : t.game.cantJoin}
+          </h1>
+          {fatal && <p className="text-foreground/75">{fatal}</p>}
+          <NextLink
+            className="rounded-lg bg-primary px-5 py-3 font-bold text-primary-foreground"
+            href="/"
+          >
+            {status === "left" ? t.game.backHome : t.game.newGame}
+          </NextLink>
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="w-full flex flex-col gap-3">
+    <>
+      <TopBar send={send} state={state} />
       {status !== "open" && (
-        <div className="flex items-center justify-center gap-2 rounded-lg bg-warning-50 p-2 text-sm text-warning-700">
+        <div
+          className="flex items-center justify-center gap-2 bg-warning/15 px-3 py-1.5 text-sm text-warning"
+          role="status"
+        >
           <Spinner color="warning" size="sm" />
-          {status === "connecting"
-            ? "Connecting to the server…"
-            : "Connection lost, reconnecting…"}
+          {status === "connecting" ? t.game.connecting : t.game.reconnecting}
         </div>
       )}
-      {!state ? (
-        <div className="flex justify-center py-10">
-          <Spinner label="Joining room…" />
-        </div>
-      ) : state.phase === "lobby" ? (
-        <Lobby send={send} state={state} />
-      ) : (
-        <RunningGame send={send} state={state} />
-      )}
-    </div>
+      <div className="relative min-h-0 flex-1">
+        {!state ? (
+          <div className="flex h-full items-center justify-center">
+            <Spinner label={t.game.joining} />
+          </div>
+        ) : state.phase === "lobby" ? (
+          <Lobby send={send} state={state} />
+        ) : (
+          <RunningGame send={send} state={state} />
+        )}
+      </div>
+    </>
   );
 }

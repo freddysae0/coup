@@ -8,17 +8,78 @@ export type ConnectionStatus = "connecting" | "open" | "reconnecting" | "left";
 
 const PLAYER_ID_KEY = "coup-player-id";
 const PLAYER_NAME_KEY = "coup-player-name";
+const SEATS_KEY = "coup-seats";
+const LOCK_PREFIX = "coup-seat-lock:";
+const LOCK_BEAT_MS = 4_000;
+const LOCK_STALE_MS = 12_000;
+const MAX_REMEMBERED_ROOMS = 30;
 
-/** Per-tab identity, so several tabs on one machine are different players. */
-export function getPlayerId() {
-  let id = sessionStorage.getItem(PLAYER_ID_KEY);
+type Seats = Record<string, { ids: string[]; at: number }>;
+
+function readSeats(): Seats {
+  try {
+    return JSON.parse(localStorage.getItem(SEATS_KEY) || "{}") as Seats;
+  } catch {
+    return {};
+  }
+}
+
+function writeSeats(seats: Seats) {
+  const recent = Object.entries(seats)
+    .sort(([, a], [, b]) => b.at - a.at)
+    .slice(0, MAX_REMEMBERED_ROOMS);
+
+  localStorage.setItem(SEATS_KEY, JSON.stringify(Object.fromEntries(recent)));
+}
+
+/** Another open tab of this browser is sitting in that seat right now. */
+function isSeatHeld(id: string) {
+  const beat = Number(localStorage.getItem(LOCK_PREFIX + id));
+
+  return Date.now() - beat < LOCK_STALE_MS;
+}
+
+/**
+ * Identity of this tab in `room`. The tab keeps it in sessionStorage, and the
+ * browser remembers every seat it took per room in localStorage, so closing
+ * the tab and opening the link again gets the same seat back. Seats held by
+ * another open tab are skipped: two tabs are still two different players.
+ */
+export function getPlayerId(room: string) {
+  const tabKey = `${PLAYER_ID_KEY}:${room}`;
+  let id = sessionStorage.getItem(tabKey);
 
   if (!id) {
-    id = v4();
-    sessionStorage.setItem(PLAYER_ID_KEY, id);
+    const seats = readSeats();
+    const known = seats[room]?.ids ?? [];
+
+    id = known.find((seat) => !isSeatHeld(seat)) ?? v4();
+    seats[room] = {
+      ids: known.includes(id) ? known : [...known, id],
+      at: Date.now(),
+    };
+    writeSeats(seats);
+    sessionStorage.setItem(tabKey, id);
   }
 
   return id;
+}
+
+/** Marks the seat as taken by this tab until the tab goes away. */
+function holdSeat(id: string) {
+  const beat = () => localStorage.setItem(LOCK_PREFIX + id, String(Date.now()));
+  const release = () => localStorage.removeItem(LOCK_PREFIX + id);
+
+  beat();
+  const timer = setInterval(beat, LOCK_BEAT_MS);
+
+  window.addEventListener("pagehide", release);
+
+  return () => {
+    clearInterval(timer);
+    window.removeEventListener("pagehide", release);
+    release();
+  };
 }
 
 export function getPlayerName() {
@@ -38,13 +99,39 @@ export function getWsUrl() {
   return protocol === "https:" ? `wss://${host}/ws` : `ws://${hostname}:8000`;
 }
 
+/** Same server over HTTP: ws(s)://host[:port][/ws] -> http(s)://host[:port]/health */
+export function getHealthUrl(wsUrl = getWsUrl()) {
+  const url = new URL(wsUrl);
+
+  url.protocol = url.protocol === "wss:" ? "https:" : "http:";
+  url.pathname =
+    url.pathname.replace(/\/ws\/?$/, "").replace(/\/$/, "") + "/health";
+
+  return url.toString();
+}
+
+/** Fire-and-forget ping so a sleeping free-tier server starts booting. */
+export function wakeServer() {
+  try {
+    fetch(getHealthUrl(), { mode: "cors" }).catch(() => {});
+  } catch {
+    // Invalid URL in config: the socket itself will report the problem.
+  }
+}
+
+export type SocketError = {
+  code?: string;
+  message: string;
+  params?: Record<string, string | number>;
+};
+
 /**
  * Keeps one WebSocket per game page. Reconnects with backoff and re-joins the
  * room automatically, so a refresh or a network hiccup never loses the seat.
  */
 export function useCoupSocket(
   room: string | null,
-  onError?: (message: string) => void,
+  onError?: (error: SocketError) => void,
 ) {
   const [state, setState] = useState<GameView | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>("connecting");
@@ -58,6 +145,8 @@ export function useCoupSocket(
     let stopped = false;
     let attempt = 0;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    const playerId = getPlayerId(room);
+    const releaseSeat = holdSeat(playerId);
 
     const connect = () => {
       const ws = new WebSocket(getWsUrl());
@@ -71,7 +160,7 @@ export function useCoupSocket(
           JSON.stringify({
             type: "join",
             room,
-            playerId: getPlayerId(),
+            playerId,
             name: getPlayerName(),
           } satisfies ClientMessage),
         );
@@ -91,7 +180,7 @@ export function useCoupSocket(
               ? next.deadline - serverTime + Date.now()
               : null,
           });
-        } else if (msg.type === "error") onErrorRef.current?.(msg.message);
+        } else if (msg.type === "error") onErrorRef.current?.(msg);
         else if (msg.type === "left") {
           stopped = true;
           setStatus("left");
@@ -115,6 +204,7 @@ export function useCoupSocket(
     return () => {
       stopped = true;
       clearTimeout(retryTimer);
+      releaseSeat();
       wsRef.current?.close();
       wsRef.current = null;
     };
@@ -128,7 +218,7 @@ export function useCoupSocket(
 
       return true;
     }
-    onErrorRef.current?.("Not connected to the server, retrying…");
+    onErrorRef.current?.({ code: "offline", message: "Not connected" });
 
     return false;
   }, []);

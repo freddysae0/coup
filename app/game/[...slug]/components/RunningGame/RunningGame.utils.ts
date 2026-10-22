@@ -1,90 +1,104 @@
+import { Dictionary } from "@/i18n/en";
 import { ActionType, GameView, Role } from "@/types/game";
 
-export const cardsImg: Record<Role | "Backcard", string> = {
-  Duke: "/cards/Duque.png",
-  Captain: "/cards/Capitan.png",
-  Assassin: "/cards/Assasin.png",
-  Contessa: "/cards/Condesa.png",
-  Ambassador: "/cards/Embajador.png",
-  Backcard: "/cards/Backcard.png",
-};
+type LogEntry = GameView["log"][number];
 
-export const icons = {
-  coins: "/icons/coin.svg",
-};
+/** Translates role/action/reason params before they go into a sentence. */
+function localizeParams(
+  params: Record<string, string | number>,
+  t: Dictionary,
+): Record<string, string | number> {
+  const out = { ...params };
 
-export const actionInfo: Record<
-  ActionType,
-  { emoji: string; description: string; role?: Role }
-> = {
-  Income: { emoji: "💵", description: "Take 1 coin." },
-  "Foreign aid": {
-    emoji: "🌍",
-    description: "Take 2 coins. Any Duke can block it.",
-  },
-  Coup: {
-    emoji: "💥",
-    description: "Pay 7 coins: the target loses a card. Cannot be stopped.",
-  },
-  Tax: { emoji: "🏛️", description: "Take 3 coins.", role: "Duke" },
-  Assassinate: {
-    emoji: "🔪",
-    description: "Pay 3 coins: the target loses a card. Contessa blocks it.",
-    role: "Assassin",
-  },
-  Steal: {
-    emoji: "💰",
-    description: "Take 2 coins from a player. Captain or Ambassador block it.",
-    role: "Captain",
-  },
-  Exchange: {
-    emoji: "🔁",
-    description: "Draw 2 cards from the deck and return 2.",
-    role: "Ambassador",
-  },
-};
+  if (typeof out.role === "string" && out.role in t.roles) {
+    out.role = t.roles[out.role as Role];
+  }
+  if (typeof out.action === "string" && out.action in t.actions) {
+    out.action = t.actions[out.action as ActionType];
+  }
+  if (typeof out.reason === "string") {
+    out.reason = t.game.reasons[out.reason] ?? out.reason;
+  }
 
-const nameOf = (state: GameView, id?: string | null) => {
-  if (!id) return "Someone";
-  if (id === state.you) return "You";
+  return out;
+}
 
-  return state.players.find((p) => p.id === id)?.name ?? "Someone";
-};
+/** A log line in the viewer's language (falls back to the server's text). */
+export function logText(entry: LogEntry, t: Dictionary): string {
+  const event = entry.event;
+  const format = event && t.game.events[event.k];
+
+  if (!format) return entry.text;
+  const params: Record<string, string | number> = { ...event };
+
+  delete params.k;
+
+  return format(localizeParams(params, t));
+}
 
 /** One sentence that explains what the table is waiting for. */
-export function describePhase(state: GameView): string {
+export function describePhase(state: GameView, t: Dictionary): string {
+  const nameOf = (id?: string | null) => {
+    if (!id) return "?";
+    if (id === state.you) return t.game.you;
+
+    return state.players.find((p) => p.id === id)?.name ?? "?";
+  };
   const pending = state.pending;
-  const actor = nameOf(state, pending?.actorId);
-  const target = nameOf(state, pending?.targetId);
-  const action = pending
-    ? `${pending.type}${pending.targetId ? ` on ${target}` : ""}`
-    : "";
+  const iAmActor = pending?.actorId === state.you;
+  const iAmTarget = pending?.targetId === state.you;
+  const base = {
+    actor: nameOf(pending?.actorId),
+    // "Beto quiere robarte" reads better than "robar a Tú".
+    action: pending
+      ? (iAmTarget ? t.game.verbsYou : t.game.verbs)[pending.type]
+      : "",
+    target: pending?.targetId && !iAmTarget ? nameOf(pending.targetId) : "",
+    role: pending?.claim ? t.roles[pending.claim] : "",
+    name: pending ? t.actions[pending.type] : "",
+  };
+  const blockRole = pending?.block ? t.roles[pending.block.role] : "";
 
   switch (state.phase) {
     case "lobby":
-      return "Waiting for the host to start the game.";
+      return t.lobby.title;
     case "action":
-      return state.turnId === state.you
-        ? "Your turn: choose an action."
-        : `${nameOf(state, state.turnId)} is choosing an action.`;
+      return t.game.phase.action(
+        nameOf(state.turnId),
+        state.turnId === state.you,
+      );
     case "challengeAction":
-      return `${actor} declared ${action}, claiming ${pending?.claim}. Anyone may challenge.`;
+      return iAmActor
+        ? t.game.phase.challengeActionMine(base)
+        : t.game.phase.challengeAction(base);
     case "blockAction":
-      return pending?.targetId
-        ? `${actor} declared ${action}. ${target} may block.`
-        : `${actor} declared ${action}. Anyone may block.`;
+      if (iAmActor) return t.game.phase.blockActionMine(base);
+
+      return iAmTarget
+        ? t.game.phase.blockActionYou(base)
+        : t.game.phase.blockAction(base);
     case "challengeBlock":
-      return `${nameOf(state, pending?.block?.blockerId)} blocks ${pending?.type} with ${pending?.block?.role}. Anyone may challenge the block.`;
+      return pending?.block?.blockerId === state.you
+        ? t.game.phase.challengeBlockMine({ role: blockRole })
+        : t.game.phase.challengeBlock({
+            blocker: nameOf(pending?.block?.blockerId),
+            role: blockRole,
+          });
     case "loseInfluence":
-      return state.loss?.playerId === state.you
-        ? "You must choose a card to lose."
-        : `${nameOf(state, state.loss?.playerId)} ${state.loss?.reason} and is choosing a card to lose.`;
+      return t.game.phase.loseInfluence({
+        mine: state.loss?.playerId === state.you ? 1 : 0,
+        name: nameOf(state.loss?.playerId),
+        reason: t.game.reasons[state.loss?.reason ?? ""] ?? "",
+      });
     case "exchange":
-      return `${actor} ${actor === "You" ? "are" : "is"} exchanging cards with the deck.`;
+      return t.game.phase.exchange({
+        mine: pending?.actorId === state.you ? 1 : 0,
+        name: nameOf(pending?.actorId),
+      });
     case "gameOver":
       return state.winnerId === state.you
-        ? "You won the game! 🎉"
-        : `${nameOf(state, state.winnerId)} won the game.`;
+        ? t.game.winTitle
+        : t.game.loseTitleEnd(nameOf(state.winnerId));
     default:
       return "";
   }
